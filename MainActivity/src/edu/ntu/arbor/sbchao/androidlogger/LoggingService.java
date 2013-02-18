@@ -78,6 +78,8 @@ public class LoggingService extends Service {
     //boolean mExternalStorageAvailable = false;
 	//boolean mExternalStorageWriteable = false;    	
 	
+    //TODO 123
+    
 	String deviceId;
 	
     //Battery information
