@@ -1,28 +1,6 @@
 package edu.ntu.arbor.sbchao.androidlogger;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Locale;
-
-import org.apache.http.HttpResponse;
-import org.apache.http.NameValuePair;
-import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.entity.UrlEncodedFormEntity;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.message.BasicNameValuePair;
-import org.apache.http.protocol.HTTP;
-import org.apache.http.util.EntityUtils;
 
 import android.app.ActivityManager;
 import android.app.Service;
@@ -38,7 +16,6 @@ import android.net.NetworkInfo;
 import android.os.BatteryManager;
 import android.os.Binder;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
@@ -49,7 +26,6 @@ import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 import android.text.format.Time;
 import android.util.Log;
-import android.widget.Toast;
 
 public class LoggingService extends Service {
 
@@ -58,27 +34,12 @@ public class LoggingService extends Service {
     private final IBinder mBinder = new LocalBinder();
         
     static boolean isServiceRunning = false;
-    static final int HIGH_RECORD_FREQ = 6000;      //6 seconds
-    static final int LOW_RECORD_FREQ  = 120000;    //2 minutes
-    int recordFreq = HIGH_RECORD_FREQ;    
+    static final int HIGH_RECORD_FREQ = 30000;      //30 seconds
+    static final int LOW_RECORD_FREQ  = 180000;    //3 minutes
+    int recordFreq = HIGH_RECORD_FREQ;
         
     private static LogManager mLogMgr;
-    private static DataManager mDataMgr = new DataManager();
-    /*
-    //static final String SERVER_PATH = "http://netdbmobileminer.appspot.com";
-    static final String SERVER_PATH = "http://10.0.2.2:8082/";
-    //Logger file information
-    static final String LOG_DIR_PATH = "/AndroidLogger";
-    static final String LOG_UNUPLOADED_PATH = "/Unuploaded";
-    static final String LOG_UPLOADED_PATH = "/Uploaded";
-    String logFilename = null;
-    FileOutputStream logFos = null;*/ 
-    
-    //sdcard availability
-    //boolean mExternalStorageAvailable = false;
-	//boolean mExternalStorageWriteable = false;    	
-	
-    //TODO 123
+    private static DataManager mDataMgr;
     
 	String deviceId;
 	
@@ -92,17 +53,23 @@ public class LoggingService extends Service {
 	
 	//Location Information
 	private LocationManager mLocMgr;
+	final static int MIN_LOC_INTERVAL = 30000;
+	final static int MIN_LOC_DISTANCE = 50;
+	Location mLocation;
 	boolean isGPSProviderEnabled;	
 	boolean isNetworkProviderEnabled;
 	int GPSProviderStatus; //OUT_OF_SERVICE = 0; TEMPORARILY_UNAVAILABLE = 1; AVAILABLE = 2
 	int networkProviderStatus;
-    double locAccuracy; //The effective range (in meter) of confidence interval = 68%
+    
+	/*
+	double locAccuracy; //The effective range (in meter) of confidence interval = 68%
     String locProvider; //gps or network
     double locAltitude;
     double locLatitude;
     double locLongitude;	        
     double locSpeed;
     double locTime; //Not recorded; for comparison of better location only
+    */
 	
     //calling status
     TelephonyManager mTelMgr;
@@ -154,10 +121,11 @@ public class LoggingService extends Service {
 			Log.i("onStartCommand", "registering services");
 		}
 		
-		mLogMgr = new LogManager(this);
-		
+		mLogMgr = new LogManager(this);		
 		mLogMgr.checkExternalStorage();
 		mLogMgr.createNewLog();
+		
+		mDataMgr = new DataManager();
 		
 	}
 
@@ -192,7 +160,6 @@ public class LoggingService extends Service {
 			} else {
 				Log.i("handleMessage", "The logging is already running...");
 			}				     
-	        //stopSelf(msg.arg1);
 	    }
     }
     
@@ -255,12 +222,13 @@ public class LoggingService extends Service {
 		
 	};
 	
+	/*
 	private Runnable uploadingTask = new Runnable(){
 		@Override
 		public void run() {
-			mLogMgr.uploadAll();									
+			mLogMgr.uploadAll();
 		}
-	};
+	};*/
 	
 	private void registerServices(){
 		registerReceiver(mBatteryChangedReceiver,new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
@@ -269,8 +237,8 @@ public class LoggingService extends Service {
 		registerReceiver(mDateChangedReceiver,new IntentFilter(Intent.ACTION_DATE_CHANGED));
 		
 		mLocMgr = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);		
-		mLocMgr.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, mLocationListener);
-		mLocMgr.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, mLocationListener);
+		mLocMgr.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, MIN_LOC_INTERVAL, MIN_LOC_DISTANCE, mLocationListener);
+		mLocMgr.requestLocationUpdates(LocationManager.GPS_PROVIDER, MIN_LOC_INTERVAL, MIN_LOC_DISTANCE, mLocationListener);
 		
 		mTelMgr = (TelephonyManager) this.getSystemService(Context.TELEPHONY_SERVICE);
 		mTelMgr.listen(mPhoneStateListener, PhoneStateListener.LISTEN_CALL_STATE);
@@ -307,28 +275,12 @@ public class LoggingService extends Service {
 		@Override
 		public void onReceive(Context context,Intent intent){
 			String action=intent.getAction();
-			if(Intent.ACTION_DATE_CHANGED.equals(action)){
-				
+			if(Intent.ACTION_DATE_CHANGED.equals(action)){				
 				mLogMgr.createNewLog();
-				mLogMgr.moveToExternalStorage();
-				
-				Thread uploadThread = new Thread(uploadingTask);
-				uploadThread.start();
-				
-				/*
-				mLogManager.createLocalLogFileForToday();
-				//move files into sdcard
-				boolean success = moveToExternalStorage();
-				Log.i("mDateChangeReceiver", "moveToExternalStorage: " + String.valueOf(success));				
-							
-				Thread uploadThread = new Thread(uploadTask);
-				uploadThread.start();
-				*/
+				mLogMgr.moveToExternalStorage();								
 			}
 		}
 	};
-	
-    
 	
 	//adjust logging frequency according to whether the user activates the screen
 	private BroadcastReceiver mScreenChangedReceiver = new BroadcastReceiver(){ 
@@ -347,27 +299,41 @@ public class LoggingService extends Service {
 	
 				
 	private LocationListener mLocationListener = new LocationListener(){
-	    public void onLocationChanged(Location location) {
-	    	Log.i("onLocationChanged", "(" + location.getLatitude() + ", " + location.getLongitude() + ")");	    	
-	        // Called when a new location is found by the network location provider.
-	        locAccuracy = location.getAccuracy();
-	        locProvider = location.getProvider();
-	        locAltitude = location.getAltitude();
-	        locLatitude = location.getLatitude();
-	        locLongitude = location.getLongitude();	        
-	        locSpeed = location.getSpeed();
-	        locTime = location.getTime();	        
-	        Log.i("onLocationChanged", "provider:" + String.valueOf(locProvider));
-	        Log.i("onLocationChanged", "acc:" + String.valueOf(locAccuracy));
-	        Log.i("onLocationChanged", "speed:" + String.valueOf(locSpeed));
-	        Log.i("onLocationChanged", "time:" + String.valueOf(locTime));
-	        //TODO isBetterLocation
+	    
+		private static final int TWO_MINUTES = 1000 * 60 * 2;
+		
+		public void onLocationChanged(Location location) {
+	    	
+	    	if(location != null){
+	    		//TODO isBetterLocation
+	    		if (isBetterLocation(location, mLocation)){
+	    			mLocation = location;
+	    		}
+	    		/*
+		    	Log.i("onLocationChanged", "(" + location.getLatitude() + ", " + location.getLongitude() + ")");	    	
+		        // Called when a new location is found by the network location provider.
+		        locAccuracy = location.getAccuracy();
+		        locProvider = location.getProvider();
+		        locAltitude = location.getAltitude();
+		        locLatitude = location.getLatitude();
+		        locLongitude = location.getLongitude();	        
+		        locSpeed = location.getSpeed();
+		        locTime = location.getTime();	        
+		        Log.i("onLocationChanged", "provider:" + String.valueOf(locProvider));
+		        Log.i("onLocationChanged", "acc:" + String.valueOf(locAccuracy));
+		        Log.i("onLocationChanged", "speed:" + String.valueOf(locSpeed));
+		        Log.i("onLocationChanged", "time:" + String.valueOf(locTime));*/
+		        
+	    	} else {
+	    		mLocation = null;
+	    	}
+	        
 	    }
 	    public void onStatusChanged(String provider, int status, Bundle extras) {
 	    	Log.i("onStatusChanged", provider);
 	    	Log.i("onStatusChanged", String.valueOf(status));	    	
 	    	if(provider=="gps") GPSProviderStatus = status;
-	    	if(provider=="network") networkProviderStatus = status;	    		    	
+	    	if(provider=="network") networkProviderStatus = status;	 	    	
 	    }
 
 	    public void onProviderEnabled(String provider) {
@@ -381,9 +347,64 @@ public class LoggingService extends Service {
 	    	Log.i("onProviderDisables", provider);
 	    	if(provider=="gps") isGPSProviderEnabled = false;
 	    	if(provider=="network") isNetworkProviderEnabled = false;
-	    	//TODO	    	
+	    	//TODO
 	    	//Ask user to turn on the network-based provider
-	    }		
+	    }	
+	    
+	    /** Determines whether one Location reading is better than the current Location fix
+	      * @param location  The new Location that you want to evaluate
+	      * @param currentBestLocation  The current Location fix, to which you want to compare the new one
+	      */
+	    protected boolean isBetterLocation(Location location, Location currentBestLocation) {
+	        if (currentBestLocation == null) {
+	            // A new location is always better than no location
+	            return true;
+	        }
+
+	        // Check whether the new location fix is newer or older
+	        long timeDelta = location.getTime() - currentBestLocation.getTime();
+	        boolean isSignificantlyNewer = timeDelta > TWO_MINUTES;
+	        boolean isSignificantlyOlder = timeDelta < -TWO_MINUTES;
+	        boolean isNewer = timeDelta > 0;
+
+	        // If it's been more than two minutes since the current location, use the new location
+	        // because the user has likely moved
+	        if (isSignificantlyNewer) {
+	            return true;
+	        // If the new location is more than two minutes older, it must be worse
+	        } else if (isSignificantlyOlder) {
+	            return false;
+	        }
+
+	        // Check whether the new location fix is more or less accurate
+	        int accuracyDelta = (int) (location.getAccuracy() - currentBestLocation.getAccuracy());
+	        boolean isLessAccurate = accuracyDelta > 0;
+	        boolean isMoreAccurate = accuracyDelta < 0;
+	        boolean isSignificantlyLessAccurate = accuracyDelta > 200;
+
+	        // Check if the old and new location are from the same provider
+	        boolean isFromSameProvider = isSameProvider(location.getProvider(),
+	                currentBestLocation.getProvider());
+
+	        // Determine location quality using a combination of timeliness and accuracy
+	        if (isMoreAccurate) {
+	            return true;
+	        } else if (isNewer && !isLessAccurate) {
+	            return true;
+	        } else if (isNewer && !isSignificantlyLessAccurate && isFromSameProvider) {
+	            return true;
+	        }
+	        return false;
+	    }
+
+	    /** Checks whether two providers are the same */
+	    private boolean isSameProvider(String provider1, String provider2) {
+	        if (provider1 == null) {
+	          return provider2 == null;
+	        }
+	        return provider1.equals(provider2);
+	    }
+	    
 	}; 
 	
 	private PhoneStateListener mPhoneStateListener = new PhoneStateListener(){
@@ -406,7 +427,7 @@ public class LoggingService extends Service {
 		else {
 			connectivity = true;
 			activeNetworkType = activeNetworkInfo.getType();
-		}		
+		}
 		
 		NetworkInfo mobileInfo = mConnMgr.getNetworkInfo(ConnectivityManager.TYPE_MOBILE);
 		isMobileAvailable = mobileInfo.isAvailable();		
@@ -422,7 +443,13 @@ public class LoggingService extends Service {
 		isWifiRoaming = wifiInfo.isRoaming();
 		wifiState = wifiInfo.getState();
 		
-		//TODO if (isMobileConnected || isWifiConnected ) { send network statistics... }
+		if (isMobileConnected || isWifiConnected ) {
+			//Thread uploadThread = new Thread(uploadingTask);
+			//uploadThread.start();
+			Intent uploadIntent = new Intent(this, UploadingService.class);
+			startService(uploadIntent);
+		}
+		
 	}
   	
 	private void monitorProcess(){
@@ -440,7 +467,51 @@ public class LoggingService extends Service {
 	
 
 			
-	private void writeToLog(){		
+	private void writeToLog(){
+		
+		mDataMgr.set(DataManager.DEVICE_ID, String.valueOf(deviceId));
+		
+		Time now = new Time(Time.getCurrentTimezone());
+		now.setToNow();
+		String timeStr = String.valueOf(now.year) + "/" + String.valueOf(now.month) + "/" + String.valueOf(now.monthDay) 
+				+ " " + now.format("%T");
+		mDataMgr.set(DataManager.TIME, timeStr);
+		mDataMgr.set(DataManager.RECORD_FREQUENCY, String.valueOf(recordFreq));
+		
+		mDataMgr.set(DataManager.BAT_STATUS, String.valueOf(batStatus));
+		mDataMgr.set(DataManager.BAT_PERCENTAGE, String.valueOf(batPercentage));
+		
+		mDataMgr.set(DataManager.GPS_PROVIDER_STATUS, String.valueOf(GPSProviderStatus));
+		mDataMgr.set(DataManager.NETWORK_PROVIDER_STATUS, String.valueOf(networkProviderStatus));
+		
+		if(mLocation == null){
+			mDataMgr.set(DataManager.LOC_ACCURACY, null);
+			mDataMgr.set(DataManager.LOC_LATITUDE, null);
+			mDataMgr.set(DataManager.LOC_LONGITUDE, null);
+			mDataMgr.set(DataManager.LOC_PROVIDER, null);
+			mDataMgr.set(DataManager.LOC_SPEED, null);
+		}
+		else{ 
+			mDataMgr.set(DataManager.LOC_ACCURACY, String.valueOf(mLocation.getAccuracy()));
+			mDataMgr.set(DataManager.LOC_LATITUDE, String.valueOf(mLocation.getLatitude()));
+			mDataMgr.set(DataManager.LOC_LONGITUDE, String.valueOf(mLocation.getLongitude()));
+			mDataMgr.set(DataManager.LOC_PROVIDER, mLocation.getProvider());
+			mDataMgr.set(DataManager.LOC_SPEED, String.valueOf(mLocation.getSpeed()));
+		}
+		/*else{ 
+			mDataMgr.set(DataManager.LOC_ACCURACY, String.valueOf(locAccuracy));
+			mDataMgr.set(DataManager.LOC_LATITUDE, String.valueOf(locLatitude));
+			mDataMgr.set(DataManager.LOC_LONGITUDE, String.valueOf(locLongitude));
+			mDataMgr.set(DataManager.LOC_PROVIDER, String.valueOf(locProvider));
+			mDataMgr.set(DataManager.LOC_SPEED, String.valueOf(locSpeed));
+		}*/
+		
+		mDataMgr.set(DataManager.MOBILE_STATE, String.valueOf(mobileState));
+		mDataMgr.set(DataManager.WIFI_STATE, String.valueOf(wifiState));
+		
+		mDataMgr.set(DataManager.PROCESS_CURRENT_PACKAGE, String.valueOf(processCurrentPackage));
+		mDataMgr.set(DataManager.IS_LOW_MEMORY, String.valueOf(isLowMemory));
+		/*
 		//device id
 		String toWrite = deviceId + "\t";
 		
@@ -450,20 +521,22 @@ public class LoggingService extends Service {
 		toWrite += String.valueOf(now.year) + "/" + String.valueOf(now.month) + "/" + String.valueOf(now.monthDay) 
 				+ " " + now.format("%T") + "\t"; 
 		
+		toWrite += String.valueOf(recordFreq) + "\t";
 		
 		//Battery
-		toWrite += String.valueOf(batLevel) + "\t" + String.valueOf(batScale) + "\t" + String.valueOf(batVoltage) + "\t" 
-				+ String.valueOf(batStatus) + "\t" + String.valueOf(batPlugged) + "\t" + String.valueOf(batPercentage) + "\t";
+		//toWrite += String.valueOf(batLevel) + "\t" + String.valueOf(batScale) + "\t" + String.valueOf(batVoltage) + "\t" 
+		//		+ String.valueOf(batStatus) + "\t" + String.valueOf(batPlugged) + "\t" + String.valueOf(batPercentage) + "\t";
+		toWrite += String.valueOf(batStatus) + "\t" + String.valueOf(batPercentage) + "\t";
+		
 		
 		//Location
 		toWrite += String.valueOf(isGPSProviderEnabled) + "\t" + String.valueOf(isNetworkProviderEnabled) + "\t" 
 				+ String.valueOf(GPSProviderStatus) + "\t" + String.valueOf(networkProviderStatus) + "\t"
-				+ String.valueOf(locAccuracy) + "\t" + locProvider + "\t" + String.valueOf(locAltitude) + "\t" 
-				+ String.valueOf(locLatitude) + "\t" + String.valueOf(locLongitude) + "\t" + String.valueOf(locSpeed) + "\t";
-				//+ String.valueOf(locTime) + "\t";
+				+ String.valueOf(locAccuracy) + "\t" + locProvider + "\t" // + String.valueOf(locAltitude) + "\t" 
+				+ String.valueOf(locLatitude) + "\t" + String.valueOf(locLongitude) + "\t" + String.valueOf(locSpeed) + "\t";				
 		
 		//Calling
-		toWrite += String.valueOf(callState) + "\t" + inNumber + "\t";
+		//toWrite += String.valueOf(callState) + "\t" + inNumber + "\t";
 		
 		//Connectivity
 		toWrite += String.valueOf(connectivity) + "\t" + String.valueOf(activeNetworkType) + "\t"
@@ -474,11 +547,13 @@ public class LoggingService extends Service {
 				+ String.valueOf(isWifiRoaming) + "\t" + String.valueOf(wifiState) + "\t";
 		
 		//Process
-		toWrite += processCurrentClass + "\t" + processCurrentPackage + "\t" + String.valueOf(availMem) + "\t"		
+		toWrite += processCurrentClass + "\t" + processCurrentPackage + "\t" //+ String.valueOf(availMem) + "\t"		
 				+ String.valueOf(isLowMemory) + "\n";
 				
-		
+		*/
 		try {
+			String toWrite = mDataMgr.toString();
+			
 			if (mLogMgr.logFos != null){
 				mLogMgr.logFos.write(toWrite.getBytes());
 			}
@@ -488,134 +563,6 @@ public class LoggingService extends Service {
 		Log.v("writeToLogFile", "The file is " + getFilesDir() + "/" + mLogMgr.logFilename);
 		Log.v("writeToLogFile", "Write Successfully!");
 	}
-	
-	/*
-	//Check if external storage is available and create directories if they don't exist
-	private void checkExternalStorage(){
-		
-		String state = Environment.getExternalStorageState();
-
-		if (Environment.MEDIA_MOUNTED.equals(state)) {
-		    // We can read and write the media
-		    mExternalStorageAvailable = mExternalStorageWriteable = true;
-		} else if (Environment.MEDIA_MOUNTED_READ_ONLY.equals(state)) {
-		    // We can only read the media
-		    mExternalStorageAvailable = true;
-		    mExternalStorageWriteable = false;
-		} else {
-		    // Something else is wrong. It may be one of many other states, but all we need
-		    //  to know is we can neither read nor write
-		    mExternalStorageAvailable = mExternalStorageWriteable = false;
-		    //TODO ask the user if she wants to make sdcard available? 
-		}
-
-		//Create directories if they do not exists
-		if( mExternalStorageAvailable && mExternalStorageWriteable ){
-			String extPath = Environment.getExternalStorageDirectory().getPath();			
-			
-			File extDir = new File(extPath + LOG_DIR_PATH);
-			if (!extDir.exists()){				
-				boolean success = extDir.mkdir();
-				Log.i("checkExternalStorage", "mkdir success? " + String.valueOf(success));
-			}			
-			File unuploadedPath = new File(extPath + LOG_DIR_PATH + LOG_UNUPLOADED_PATH);			
-			if (!unuploadedPath.exists()){
-				boolean success = unuploadedPath.mkdir();
-				Log.i("checkExternalStorage", "mkdir success? " + String.valueOf(success));
-			}			
-			File uploadedPath = new File(extPath + LOG_DIR_PATH + LOG_UPLOADED_PATH);			
-			if (!uploadedPath.exists()){
-				boolean success = uploadedPath.mkdir();
-				Log.i("checkExternalStorage", "mkdir success? " + String.valueOf(success));
-			}
-		}
-	}*/
-	
-	/*
-	private void createLocalLogFileForToday(){
-    	Date today = new Date();
-		DateFormat format = new SimpleDateFormat("MMdd", Locale.getDefault());		
-		String newLogFilename = "log_" + format.format(today) + ".txt";		
-		
-		if( logFos == null || !newLogFilename.equals(logFilename)){			
-			try {
-				if(logFos != null){
-					logFos.close();
-				}
-				logFilename = newLogFilename;
-				logFos = openFileOutput(logFilename, Context.MODE_APPEND);
-			} catch (FileNotFoundException e) {
-				e.printStackTrace();
-				Log.e("logfile", "cannot open log file: " + logFilename);
-			} catch (IOException e) {
-				e.printStackTrace();
-				Log.e("logfile", "cannot close log file:" + logFilename);
-			}
-		}		
-		Log.i("logfile", "create local file " + logFilename + "successfully");
-    }
-	
-	*/
-	
-	/*
-	//Move local log files to sdcard once a day
-	private boolean moveToExternalStorage(){
-		
-		checkExternalStorage();		
-		if( mExternalStorageAvailable && mExternalStorageWriteable ){
-			
-			String extPath = Environment.getExternalStorageDirectory().getPath();
-			File unuploadedPath = new File(extPath + LOG_DIR_PATH + LOG_UNUPLOADED_PATH);
-			//try {
-				//logFos.close();
-			//} catch (IOException e) {
-			//	Log.e("moveToExternalStorage", "cannot close the file stream!");
-			//	e.printStackTrace();
-			//}
-			
-			String dirPath = getFilesDir().getPath();
-			String [] fList = fileList();	
-			boolean success = true;
-			for (String filename : fList){
-				File src  = new File(dirPath + "/" + filename);
-				File dest = new File(unuploadedPath.getPath() + "/" + filename);
-				try {
-					//Ignore file for today while moving files to sdcard
-					if(!src.getName().equals(logFilename)){
-						copyFile(src, dest);					
-						boolean deleted = deleteFile(filename);
-						Log.i("moveToExternalStorage", "move the file: " + src.getPath() + " successfully to " + dest.getParent() + "? " + String.valueOf(deleted));
-					}
-				} 				
-				catch (IOException e) {
-					Log.e("moveToExternalStorage", "cannot move the file: " + src.getPath());
-					e.printStackTrace();
-					success = false;
-				}				
-			}			
-			return success;
-		} 		
-		else {		
-			Log.i("moveToExternalStorage", "Cannot write into the sdcard temporarily");
-			return false;
-		}		
-	}
-	
-	//A helper function which copies a file
-	private void copyFile(File src, File dst) throws IOException {
-	    InputStream in = new FileInputStream(src);
-	    OutputStream out = new FileOutputStream(dst);
-
-	    // Transfer bytes from in to out
-	    byte[] buf = new byte[1024];
-	    int len;
-	    while ((len = in.read(buf)) > 0) {
-	        out.write(buf, 0, len);
-	    }
-	    in.close();
-	    out.close();
-	}
-	*/
 	
 }
 	

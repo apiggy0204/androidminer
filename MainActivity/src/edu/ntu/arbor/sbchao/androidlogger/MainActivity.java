@@ -77,7 +77,7 @@ public class MainActivity extends Activity {
     
     //Display current status of the mobile
     private void displayInfo(){
-    	textHello.setText("你的電量還有" + String.valueOf(mService.batLevel));
+    	textHello.setText("battery: " + String.valueOf(mService.batLevel));
     }
     
     @Override

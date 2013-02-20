@@ -21,28 +21,28 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.protocol.HTTP;
 
-import android.app.Service;
 import android.content.Context;
 import android.os.Environment;
 import android.util.Log;
 
 public class LogManager {
 	
-	static final String SERVER_PATH = "http://10.0.2.2:8082/";
+	//static final String SERVER_PATH = "http://10.0.2.2:8080/";
+	static final String SERVER_PATH = "http://netdbmobileminer.appspot.com/";
 	static final String LOG_DIR_PATH = "/AndroidLogger";
     static final String LOG_UNUPLOADED_PATH = "/Unuploaded";
     static final String LOG_UPLOADED_PATH = "/Uploaded";
     
-    private DataManager dMgr = new DataManager();
+    private static DataManager dMgr = new DataManager();
     
 	private static boolean mExternalStorageAvailable;
 	private static boolean mExternalStorageWriteable;
 	
 	String logFilename = null;
     FileOutputStream logFos = null;
-	private Service service; 
+	private Context service; 
     
-    public LogManager(Service service){
+    public LogManager(Context service){
     	this.service = service;
     }
     
@@ -50,7 +50,7 @@ public class LogManager {
     	
     }
     
-	public void uploadAll(){		
+	public static void uploadAll(){		
 		//TODO make a notification bar
 		 
 		String extPath = Environment.getExternalStorageDirectory().getPath();
@@ -70,7 +70,7 @@ public class LogManager {
 		
 	}
 	
-	private boolean uploadSingleFile(File file){
+	private static boolean uploadSingleFile(File file){
 		
 		try {
 			LogFileReader reader = new LogFileReader(file, dMgr);
@@ -89,10 +89,14 @@ public class LogManager {
 		return true;
 	}
 	
-	private boolean uploadSingleRecord(ArrayList<NameValuePair> params){
+	private static boolean uploadSingleRecord(ArrayList<NameValuePair> params){
 		HttpPost httpPost = new HttpPost(SERVER_PATH);
 		try {
 			httpPost.setEntity(new UrlEncodedFormEntity(params, HTTP.UTF_8));
+			/*HttpParams httpParams = new BasicHttpParams();
+			HttpConnectionParams.setConnectionTimeout(httpParams, 1000);
+			HttpConnectionParams.setSoTimeout(httpParams, 1000);
+			httpPost.setParams()*/
 			HttpResponse resp = new DefaultHttpClient().execute(httpPost);
 			if (resp.getStatusLine().getStatusCode() == 200){				
 				Log.v("sendStatistics", "a record has been sent!");
@@ -169,8 +173,9 @@ public class LogManager {
 				e.printStackTrace();
 				Log.e("logfile", "cannot close log file:" + logFilename);
 			}
+			Log.i("logfile", "create local file " + logFilename + "successfully");
 		}		
-		Log.i("logfile", "create local file " + logFilename + "successfully");
+		
     }
 	
 	//Move local log files to sdcard once a day
@@ -181,12 +186,6 @@ public class LogManager {
 			
 			String extPath = Environment.getExternalStorageDirectory().getPath();
 			File unuploadedPath = new File(extPath + LOG_DIR_PATH + LOG_UNUPLOADED_PATH);
-			/*try {
-				//logFos.close();
-			} catch (IOException e) {
-				Log.e("moveToExternalStorage", "cannot close the file stream!");
-				e.printStackTrace();
-			}*/
 			
 			String dirPath = service.getFilesDir().getPath();
 			String [] fList = service.fileList();	

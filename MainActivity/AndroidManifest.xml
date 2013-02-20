@@ -33,7 +33,7 @@
         </activity>
         
         <service android:name=".LoggingService" />
-        <service android:name=".LogUploadingService" />
+        <service android:name=".UploadingService" />
         
     </application>
 

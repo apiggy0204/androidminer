@@ -1,13 +1,17 @@
 package edu.ntu.arbor.sbchao.androidlogger;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 import android.net.NetworkInfo;
 import android.text.format.Time;
+import android.util.Log;
 
 public class DataManager {
 	
-	private ArrayList<String> columnNameList = new ArrayList<String>();
+	private ArrayList<String> mColumnNameList = new ArrayList<String>();
+	private Map<String, String> mMap = new HashMap<String, String>();
 	
 	public static final String DEVICE_ID = "deviceId";	
 	public static final String BAT_LEVEL = "batLevel";
@@ -45,11 +49,13 @@ public class DataManager {
 	public static final String AVAIL_MEM = "availMem";
 	public static final String IS_LOW_MEMORY = "isLowMemory";	
 	public static final String TIME = "time";
+	public static final String RECORD_FREQUENCY = "recordFreq";
 	
-	
+	/*
 	//Data
 	String deviceId;
 	Time now;
+	int recordFreq;
 	
     //Battery information
 	int batLevel;
@@ -94,6 +100,7 @@ public class DataManager {
 	String processCurrentPackage;			
 	long availMem;		
 	boolean isLowMemory;
+	*/
 	
 	public DataManager(){
 		registerColumnNames();
@@ -101,64 +108,95 @@ public class DataManager {
 	
 	
 	public int getColumnCount(){
-		return columnNameList.size();
+		return mColumnNameList.size();
 	}
 	
 	public String getColumnName(int index){
-		return columnNameList.get(index);
+		return mColumnNameList.get(index);
 		
 	}
 	
 	private void reg(String columnName){
-		this.columnNameList.add(columnName);		
+		this.mColumnNameList.add(columnName);		
 	}
 		
 	private void registerColumnNames(){
 		reg(DEVICE_ID);		
 		reg(TIME);
+		reg(RECORD_FREQUENCY);
 		
 	    //Battery information
-		reg(BAT_LEVEL);
-		reg(BAT_SCALE);
-		reg(BAT_VOLTAGE);
+		//reg(BAT_LEVEL);
+		//reg(BAT_SCALE);
+		//reg(BAT_VOLTAGE);
 		reg(BAT_STATUS);
-		reg(BAT_PLUGGED);
+		//reg(BAT_PLUGGED);
 		reg(BAT_PERCENTAGE);
 		
 		//Location Information		
-		reg(IS_GPS_ENABLED);
-		reg(IS_NETWORK_ENABLED);
+		//reg(IS_GPS_ENABLED);
+		//reg(IS_NETWORK_ENABLED);
 		reg(GPS_PROVIDER_STATUS);
 		reg(NETWORK_PROVIDER_STATUS);
 	    reg(LOC_ACCURACY);
 	    reg(LOC_PROVIDER);
-	    reg(LOC_ALTITUDE);
+	    //reg(LOC_ALTITUDE);
 	    reg(LOC_LATITUDE);
 	    reg(LOC_LONGITUDE);	        
 	    reg(LOC_SPEED);	    
 		
 	    //calling status	    
-		reg(CALL_STATE);
-		reg(INCOMING_NUMBER);
+		//reg(CALL_STATE);
+		//reg(INCOMING_NUMBER);
 		
 		//network status		
-		reg(CONNECTIVITY);
-		reg(ACTIVE_NETWORK_TYPE);
-		reg(IS_MOBILE_AVAILABLE);
-		reg(IS_MOBILE_CONNECTED);
-		reg(IS_MOBILE_FAILOVER);
-		reg(IS_MOBILE_ROAMING);
+		//reg(CONNECTIVITY);
+		//reg(ACTIVE_NETWORK_TYPE);
+		//reg(IS_MOBILE_AVAILABLE);
+		//reg(IS_MOBILE_CONNECTED);
+		//reg(IS_MOBILE_FAILOVER);
+		//reg(IS_MOBILE_ROAMING);
 		reg(MOBILE_STATE);		
-		reg(IS_WIFI_AVAILABLE);		
-		reg(IS_WIFI_CONNECTED);
-		reg(IS_WIFI_FAILOVER);
-		reg(IS_WIFI_ROAMING);
+		//reg(IS_WIFI_AVAILABLE);		
+		//reg(IS_WIFI_CONNECTED);
+		//reg(IS_WIFI_FAILOVER);
+		//reg(IS_WIFI_ROAMING);
 		reg(WIFI_STATE);
 		
-		reg(PROCESS_CURRENT_CLASS);
+		//reg(PROCESS_CURRENT_CLASS);
 		reg(PROCESS_CURRENT_PACKAGE);
-		reg(AVAIL_MEM);			
+		//reg(AVAIL_MEM);			
 		reg(IS_LOW_MEMORY);
+	}
+	
+	public boolean set(String columnName, String value){
+		if (mColumnNameList.contains(columnName)){
+			mMap.put(columnName, value);
+			return true;
+		}
+		else return false; 		
+	}
+	
+	public String get(String columnName){
+		if (mColumnNameList.contains(columnName)){
+			return mMap.get(columnName);			
+		}
+		else return null;
+	}
+	
+	public String toString(){
+		String str = "";
+		for (String columnName : mColumnNameList){
+			String value = mMap.get(columnName);			
+			if( value == null || value.equals("null")){
+				str += "null" + "\t";
+			} 
+			else {
+				str += value + "\t";
+			}
+		}
+		str += "\n";
+		return str;
 	}
 	
 }
