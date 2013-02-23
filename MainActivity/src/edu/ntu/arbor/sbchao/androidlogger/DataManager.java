@@ -19,17 +19,17 @@ public class DataManager {
 	public static final String BAT_VOLTAGE = "batVoltage";
 	public static final String BAT_STATUS = "batStatus";
 	public static final String BAT_PLUGGED = "batPlugged";
-	public static final String BAT_PERCENTAGE = "batPercentage";
+	public static final String BAT_PERCENTAGE = "batPct";
 	public static final String IS_GPS_ENABLED = "isGPSProviderEnabled";
 	public static final String IS_NETWORK_ENABLED = "isNetworkProviderEnabled";
-	public static final String GPS_PROVIDER_STATUS = "GPSProviderStatus";
-	public static final String NETWORK_PROVIDER_STATUS = "networkProviderStatus";
-	public static final String LOC_ACCURACY = "locAccuracy";
+	public static final String GPS_PROVIDER_STATUS = "gpsStatus";
+	public static final String NETWORK_PROVIDER_STATUS = "networkStatus";
+	public static final String LOC_ACCURACY = "locAcc";
 	public static final String LOC_PROVIDER = "locProvider";
-	public static final String LOC_ALTITUDE = "locAltitude";
-	public static final String LOC_LATITUDE = "locLatitude";
-	public static final String LOC_LONGITUDE = "locLongitude";
-	public static final String LOC_SPEED = "locSpeed";
+	public static final String LOC_ALTITUDE = "alt";
+	public static final String LOC_LATITUDE = "lat";
+	public static final String LOC_LONGITUDE = "lon";
+	public static final String LOC_SPEED = "speed";
 	public static final String CALL_STATE = "callState";
 	public static final String INCOMING_NUMBER = "incomingNumber";
 	public static final String CONNECTIVITY = "connectivity";
@@ -51,61 +51,9 @@ public class DataManager {
 	public static final String TIME = "time";
 	public static final String RECORD_FREQUENCY = "recordFreq";
 	
-	/*
-	//Data
-	String deviceId;
-	Time now;
-	int recordFreq;
-	
-    //Battery information
-	int batLevel;
-	int batScale;
-	int batVoltage;
-	int batStatus;
-	int batPlugged;
-	double batPercentage;
-	
-	//Location Information	
-	boolean isGPSProviderEnabled;	
-	boolean isNetworkProviderEnabled;
-	int GPSProviderStatus; //OUT_OF_SERVICE = 0; TEMPORARILY_UNAVAILABLE = 1; AVAILABLE = 2
-	int networkProviderStatus;
-    double locAccuracy; //The effective range (in meter) of confidence interval = 68%
-    String locProvider; //gps or network
-    double locAltitude;
-    double locLatitude;
-    double locLongitude;	        
-    double locSpeed;
-	
-    //calling status
-	int callState; //CALL_STATE_IDLE, CALL_STATE_RINGING or CALL_STATE_OFFHOOK; see http://developer.android.com/reference/android/telephony/TelephonyManager.html
-	String inNumber;
-	
-	//network status
-	boolean connectivity;
-	int activeNetworkType; //Type of connection (if active); TYPE_MOBILE=0, TYPE_WIFI=1
-	boolean isMobileAvailable;		
-	boolean isMobileConnected;
-	boolean isMobileFailover;
-	boolean isMobileRoaming;
-	NetworkInfo.State mobileState; //http://developer.android.com/reference/android/net/NetworkInfo.State.html
-								   //CONNECTED; CONNECTING; DISCONNECTED; DISCONNECTING; SUSPENDED; UNKNOWN 
-	boolean isWifiAvailable;		
-	boolean isWifiConnected;
-	boolean isWifiFailover;
-	boolean isWifiRoaming;
-	NetworkInfo.State wifiState;
-		
-	String processCurrentClass;
-	String processCurrentPackage;			
-	long availMem;		
-	boolean isLowMemory;
-	*/
-	
 	public DataManager(){
 		registerColumnNames();
 	}
-	
 	
 	public int getColumnCount(){
 		return mColumnNameList.size();
@@ -189,7 +137,7 @@ public class DataManager {
 		for (String columnName : mColumnNameList){
 			String value = mMap.get(columnName);			
 			if( value == null || value.equals("null")){
-				str += "null" + "\t";
+				str += "\t";
 			} 
 			else {
 				str += value + "\t";

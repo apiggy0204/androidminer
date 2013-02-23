@@ -41,7 +41,9 @@ public class LogFileReader {
 			String [] tokens = line.split("\t");
 			assert(tokens.length == mgr.getColumnCount());
 			for(int i=0; i<tokens.length; i++){
-				params.add(new BasicNameValuePair(mgr.getColumnName(i), tokens[i]));
+				if(!tokens[i].equals("")){
+					params.add(new BasicNameValuePair(mgr.getColumnName(i), tokens[i]));
+				}
 			}						
 			return params;
 		}

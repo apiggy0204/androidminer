@@ -27,8 +27,8 @@ import android.util.Log;
 
 public class LogManager {
 	
-	//static final String SERVER_PATH = "http://10.0.2.2:8080/";
-	static final String SERVER_PATH = "http://netdbmobileminer.appspot.com/";
+	//static final String SERVER_PATH = "http://10.0.2.2/netdbmobileminer_test/";
+	static final String SERVER_PATH = "http://140.112.42.22/netdbmobileminer_test/";
 	static final String LOG_DIR_PATH = "/AndroidLogger";
     static final String LOG_UNUPLOADED_PATH = "/Unuploaded";
     static final String LOG_UPLOADED_PATH = "/Uploaded";
@@ -93,10 +93,6 @@ public class LogManager {
 		HttpPost httpPost = new HttpPost(SERVER_PATH);
 		try {
 			httpPost.setEntity(new UrlEncodedFormEntity(params, HTTP.UTF_8));
-			/*HttpParams httpParams = new BasicHttpParams();
-			HttpConnectionParams.setConnectionTimeout(httpParams, 1000);
-			HttpConnectionParams.setSoTimeout(httpParams, 1000);
-			httpPost.setParams()*/
 			HttpResponse resp = new DefaultHttpClient().execute(httpPost);
 			if (resp.getStatusLine().getStatusCode() == 200){				
 				Log.v("sendStatistics", "a record has been sent!");

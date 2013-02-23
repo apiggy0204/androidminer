@@ -34,8 +34,8 @@ public class LoggingService extends Service {
     private final IBinder mBinder = new LocalBinder();
         
     static boolean isServiceRunning = false;
-    static final int HIGH_RECORD_FREQ = 30000;      //30 seconds
-    static final int LOW_RECORD_FREQ  = 180000;    //3 minutes
+    static final int HIGH_RECORD_FREQ = 15000;      //10 seconds
+    static final int LOW_RECORD_FREQ  = 120000;    //2 minutes
     int recordFreq = HIGH_RECORD_FREQ;
         
     private static LogManager mLogMgr;
@@ -61,16 +61,6 @@ public class LoggingService extends Service {
 	int GPSProviderStatus; //OUT_OF_SERVICE = 0; TEMPORARILY_UNAVAILABLE = 1; AVAILABLE = 2
 	int networkProviderStatus;
     
-	/*
-	double locAccuracy; //The effective range (in meter) of confidence interval = 68%
-    String locProvider; //gps or network
-    double locAltitude;
-    double locLatitude;
-    double locLongitude;	        
-    double locSpeed;
-    double locTime; //Not recorded; for comparison of better location only
-    */
-	
     //calling status
     TelephonyManager mTelMgr;
 	int callState; //CALL_STATE_IDLE, CALL_STATE_RINGING or CALL_STATE_OFFHOOK; see http://developer.android.com/reference/android/telephony/TelephonyManager.html
@@ -222,14 +212,6 @@ public class LoggingService extends Service {
 		
 	};
 	
-	/*
-	private Runnable uploadingTask = new Runnable(){
-		@Override
-		public void run() {
-			mLogMgr.uploadAll();
-		}
-	};*/
-	
 	private void registerServices(){
 		registerReceiver(mBatteryChangedReceiver,new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
 		registerReceiver(mScreenChangedReceiver,new IntentFilter(Intent.ACTION_SCREEN_ON));
@@ -303,50 +285,33 @@ public class LoggingService extends Service {
 		private static final int TWO_MINUTES = 1000 * 60 * 2;
 		
 		public void onLocationChanged(Location location) {
-	    	
 	    	if(location != null){
-	    		//TODO isBetterLocation
 	    		if (isBetterLocation(location, mLocation)){
 	    			mLocation = location;
 	    		}
-	    		/*
-		    	Log.i("onLocationChanged", "(" + location.getLatitude() + ", " + location.getLongitude() + ")");	    	
-		        // Called when a new location is found by the network location provider.
-		        locAccuracy = location.getAccuracy();
-		        locProvider = location.getProvider();
-		        locAltitude = location.getAltitude();
-		        locLatitude = location.getLatitude();
-		        locLongitude = location.getLongitude();	        
-		        locSpeed = location.getSpeed();
-		        locTime = location.getTime();	        
-		        Log.i("onLocationChanged", "provider:" + String.valueOf(locProvider));
-		        Log.i("onLocationChanged", "acc:" + String.valueOf(locAccuracy));
-		        Log.i("onLocationChanged", "speed:" + String.valueOf(locSpeed));
-		        Log.i("onLocationChanged", "time:" + String.valueOf(locTime));*/
-		        
 	    	} else {
 	    		mLocation = null;
 	    	}
-	        
 	    }
+		
 	    public void onStatusChanged(String provider, int status, Bundle extras) {
 	    	Log.i("onStatusChanged", provider);
 	    	Log.i("onStatusChanged", String.valueOf(status));	    	
-	    	if(provider=="gps") GPSProviderStatus = status;
-	    	if(provider=="network") networkProviderStatus = status;	 	    	
+	    	if(provider.equals("gps")) GPSProviderStatus = status;
+	    	if(provider.equals("network")) networkProviderStatus = status;	 	    	
 	    }
 
 	    public void onProviderEnabled(String provider) {
 	    	Log.i("onProviderEnables", provider);
-	    	if(provider=="gps") isGPSProviderEnabled = true;
-	    	if(provider=="network") isNetworkProviderEnabled = true;
+	    	if(provider.equals("gps")) isGPSProviderEnabled = true;
+	    	if(provider.equals("network")) isNetworkProviderEnabled = true;
 	    	
 	    }
 
 	    public void onProviderDisabled(String provider) {
 	    	Log.i("onProviderDisables", provider);
-	    	if(provider=="gps") isGPSProviderEnabled = false;
-	    	if(provider=="network") isNetworkProviderEnabled = false;
+	    	if(provider.equals("gps")) isGPSProviderEnabled = false;
+	    	if(provider.equals("network")) isNetworkProviderEnabled = false;
 	    	//TODO
 	    	//Ask user to turn on the network-based provider
 	    }	
@@ -453,27 +418,31 @@ public class LoggingService extends Service {
 	}
   	
 	private void monitorProcess(){
+		
+		//TODO running processes in the background
+		
 		processCurrentPackage = mActMgr.getRunningTasks(1).get(0).topActivity.getPackageName();
 		Log.v("processCurrentPackage", processCurrentPackage);
 		processCurrentClass = mActMgr.getRunningTasks(1).get(0).topActivity.getClassName();
 		Log.v("processCurrentClass", processCurrentClass);
 		
 		mActMgr.getMemoryInfo(memoryInfo);
-		availMem = memoryInfo.availMem;		
-		Log.v("availMem", String.valueOf(availMem));
-		isLowMemory = memoryInfo.lowMemory;
-		Log.v("isLowMemory", String.valueOf(isLowMemory));
+		availMem = memoryInfo.availMem;				
+		isLowMemory = memoryInfo.lowMemory;		
 	}
 	
 
 			
 	private void writeToLog(){
 		
+		Log.i("gpsStatus", String.valueOf(GPSProviderStatus));
+		
+		//Setting data for writing
 		mDataMgr.set(DataManager.DEVICE_ID, String.valueOf(deviceId));
 		
 		Time now = new Time(Time.getCurrentTimezone());
 		now.setToNow();
-		String timeStr = String.valueOf(now.year) + "/" + String.valueOf(now.month) + "/" + String.valueOf(now.monthDay) 
+		String timeStr = String.valueOf(now.year) + "-" + String.valueOf(now.month) + "-" + String.valueOf(now.monthDay) 
 				+ " " + now.format("%T");
 		mDataMgr.set(DataManager.TIME, timeStr);
 		mDataMgr.set(DataManager.RECORD_FREQUENCY, String.valueOf(recordFreq));
@@ -484,73 +453,28 @@ public class LoggingService extends Service {
 		mDataMgr.set(DataManager.GPS_PROVIDER_STATUS, String.valueOf(GPSProviderStatus));
 		mDataMgr.set(DataManager.NETWORK_PROVIDER_STATUS, String.valueOf(networkProviderStatus));
 		
-		if(mLocation == null){
+		if(mLocation != null){
+			mDataMgr.set(DataManager.LOC_ACCURACY, String.valueOf(mLocation.getAccuracy()));
+			mDataMgr.set(DataManager.LOC_LATITUDE, String.valueOf(mLocation.getLatitude()));
+			mDataMgr.set(DataManager.LOC_LONGITUDE, String.valueOf(mLocation.getLongitude()));
+			mDataMgr.set(DataManager.LOC_PROVIDER, mLocation.getProvider());
+			mDataMgr.set(DataManager.LOC_SPEED, String.valueOf(mLocation.getSpeed()));			
+		}
+		else { 
 			mDataMgr.set(DataManager.LOC_ACCURACY, null);
 			mDataMgr.set(DataManager.LOC_LATITUDE, null);
 			mDataMgr.set(DataManager.LOC_LONGITUDE, null);
 			mDataMgr.set(DataManager.LOC_PROVIDER, null);
 			mDataMgr.set(DataManager.LOC_SPEED, null);
 		}
-		else{ 
-			mDataMgr.set(DataManager.LOC_ACCURACY, String.valueOf(mLocation.getAccuracy()));
-			mDataMgr.set(DataManager.LOC_LATITUDE, String.valueOf(mLocation.getLatitude()));
-			mDataMgr.set(DataManager.LOC_LONGITUDE, String.valueOf(mLocation.getLongitude()));
-			mDataMgr.set(DataManager.LOC_PROVIDER, mLocation.getProvider());
-			mDataMgr.set(DataManager.LOC_SPEED, String.valueOf(mLocation.getSpeed()));
-		}
-		/*else{ 
-			mDataMgr.set(DataManager.LOC_ACCURACY, String.valueOf(locAccuracy));
-			mDataMgr.set(DataManager.LOC_LATITUDE, String.valueOf(locLatitude));
-			mDataMgr.set(DataManager.LOC_LONGITUDE, String.valueOf(locLongitude));
-			mDataMgr.set(DataManager.LOC_PROVIDER, String.valueOf(locProvider));
-			mDataMgr.set(DataManager.LOC_SPEED, String.valueOf(locSpeed));
-		}*/
 		
 		mDataMgr.set(DataManager.MOBILE_STATE, String.valueOf(mobileState));
 		mDataMgr.set(DataManager.WIFI_STATE, String.valueOf(wifiState));
 		
 		mDataMgr.set(DataManager.PROCESS_CURRENT_PACKAGE, String.valueOf(processCurrentPackage));
 		mDataMgr.set(DataManager.IS_LOW_MEMORY, String.valueOf(isLowMemory));
-		/*
-		//device id
-		String toWrite = deviceId + "\t";
 		
-		//Current time
-		Time now = new Time(Time.getCurrentTimezone());
-		now.setToNow();				
-		toWrite += String.valueOf(now.year) + "/" + String.valueOf(now.month) + "/" + String.valueOf(now.monthDay) 
-				+ " " + now.format("%T") + "\t"; 
-		
-		toWrite += String.valueOf(recordFreq) + "\t";
-		
-		//Battery
-		//toWrite += String.valueOf(batLevel) + "\t" + String.valueOf(batScale) + "\t" + String.valueOf(batVoltage) + "\t" 
-		//		+ String.valueOf(batStatus) + "\t" + String.valueOf(batPlugged) + "\t" + String.valueOf(batPercentage) + "\t";
-		toWrite += String.valueOf(batStatus) + "\t" + String.valueOf(batPercentage) + "\t";
-		
-		
-		//Location
-		toWrite += String.valueOf(isGPSProviderEnabled) + "\t" + String.valueOf(isNetworkProviderEnabled) + "\t" 
-				+ String.valueOf(GPSProviderStatus) + "\t" + String.valueOf(networkProviderStatus) + "\t"
-				+ String.valueOf(locAccuracy) + "\t" + locProvider + "\t" // + String.valueOf(locAltitude) + "\t" 
-				+ String.valueOf(locLatitude) + "\t" + String.valueOf(locLongitude) + "\t" + String.valueOf(locSpeed) + "\t";				
-		
-		//Calling
-		//toWrite += String.valueOf(callState) + "\t" + inNumber + "\t";
-		
-		//Connectivity
-		toWrite += String.valueOf(connectivity) + "\t" + String.valueOf(activeNetworkType) + "\t"
-				+ String.valueOf(isMobileAvailable) + "\t" + String.valueOf(isMobileConnected) + "\t"
-				+ String.valueOf(isMobileFailover) + "\t" + String.valueOf(isMobileRoaming) + "\t"
-				+ String.valueOf(mobileState) + "\t" + String.valueOf(isWifiAvailable) + "\t"
-				+ String.valueOf(isWifiConnected) + "\t" + String.valueOf(isWifiFailover) + "\t"
-				+ String.valueOf(isWifiRoaming) + "\t" + String.valueOf(wifiState) + "\t";
-		
-		//Process
-		toWrite += processCurrentClass + "\t" + processCurrentPackage + "\t" //+ String.valueOf(availMem) + "\t"		
-				+ String.valueOf(isLowMemory) + "\n";
-				
-		*/
+		//Write to the log
 		try {
 			String toWrite = mDataMgr.toString();
 			
