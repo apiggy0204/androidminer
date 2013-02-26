@@ -56,17 +56,19 @@ public class LogManager {
 		String extPath = Environment.getExternalStorageDirectory().getPath();
 		File unuploadedPath = new File(extPath + LOG_DIR_PATH + LOG_UNUPLOADED_PATH);			
 		File[] fileList = unuploadedPath.listFiles();
-		Log.i("sendStatistics", "There are " + fileList.length + " unuploaded files" );
-		for (File file : fileList){			
-			boolean uploaded = uploadSingleFile(file);				
-			Log.i("sendStatistics", "upload " + file.getPath() + "? " + String.valueOf(uploaded));
-			if(uploaded){
-				//Move to the uploaded directory
-				File dest = new File(extPath + LOG_DIR_PATH + LOG_UPLOADED_PATH + "/" + file.getName());
-				boolean isMoved = file.renameTo(dest);
-				Log.i("sendStatistics", "The uploaded file has been moved to" + dest.getPath() + "?" + String.valueOf(isMoved));
-			}
-		}									
+		if( fileList != null ){
+			Log.i("sendStatistics", "There are " + fileList.length + " unuploaded files" );
+			for (File file : fileList){			
+				boolean uploaded = uploadSingleFile(file);				
+				Log.i("sendStatistics", "upload " + file.getPath() + "? " + String.valueOf(uploaded));
+				if(uploaded){
+					//Move to the uploaded directory
+					File dest = new File(extPath + LOG_DIR_PATH + LOG_UPLOADED_PATH + "/" + file.getName());
+					boolean isMoved = file.renameTo(dest);
+					Log.i("sendStatistics", "The uploaded file has been moved to" + dest.getPath() + "?" + String.valueOf(isMoved));
+				}
+			}						
+		}
 		
 	}
 	

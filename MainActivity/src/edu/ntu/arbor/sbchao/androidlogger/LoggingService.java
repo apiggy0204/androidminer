@@ -3,9 +3,11 @@ package edu.ntu.arbor.sbchao.androidlogger;
 import java.io.IOException;
 
 import android.app.ActivityManager;
+import android.app.AlertDialog;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.location.Location;
@@ -26,6 +28,7 @@ import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 import android.text.format.Time;
 import android.util.Log;
+import android.view.WindowManager;
 
 public class LoggingService extends Service {
 
@@ -312,8 +315,6 @@ public class LoggingService extends Service {
 	    	Log.i("onProviderDisables", provider);
 	    	if(provider.equals("gps")) isGPSProviderEnabled = false;
 	    	if(provider.equals("network")) isNetworkProviderEnabled = false;
-	    	//TODO
-	    	//Ask user to turn on the network-based provider
 	    }	
 	    
 	    /** Determines whether one Location reading is better than the current Location fix

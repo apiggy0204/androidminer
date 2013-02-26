@@ -1,8 +1,10 @@
 package edu.ntu.arbor.sbchao.androidlogger;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.Bundle;
@@ -20,10 +22,10 @@ public class MainActivity extends Activity {
 	private Button buttonQuit;
 	private Button buttonRefresh;
 	private Button buttonStopLogging;
-	private TextView textHello;
+	private TextView textInfo;
 	
 	boolean mBound = false;
-	LoggingService mService;
+	LoggingService mService = null;
 	
 	private ServiceConnection mConnection = new ServiceConnection(){
 		@Override
@@ -44,17 +46,15 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        buttonQuit = (Button) findViewById(R.id.button_quit);        
-        buttonQuit.setOnClickListener(quitListener);
-        buttonRefresh = (Button) findViewById(R.id.button_refresh);
-        buttonRefresh.setOnClickListener(refreshListener);
-        buttonStopLogging = (Button) findViewById(R.id.button_stop_logging);
-        buttonStopLogging.setOnClickListener(stopLoggingListener);
-        textHello = (TextView) findViewById(R.id.text_hello);        
         
+        setListeners();
+
         //Start LoggingService
         Intent intent = new Intent(MainActivity.this, LoggingService.class);
-        startService(intent);                
+        startService(intent);
+        
+        //Ask user to enable location providers
+        showEnableLocationDialog();
     }
     
     @Override
@@ -68,16 +68,11 @@ public class MainActivity extends Activity {
     @Override
     protected void onStop() {
         super.onStop();
-        // Unbind from the service
+        // Unbound from the service
         if (mBound) {
             unbindService(mConnection);
             mBound = false;
         }
-    }
-    
-    //Display current status of the mobile
-    private void displayInfo(){
-    	textHello.setText("battery: " + String.valueOf(mService.batLevel));
     }
     
     @Override
@@ -86,6 +81,69 @@ public class MainActivity extends Activity {
         getMenuInflater().inflate(R.menu.activity_main, menu);
         return true;
     }
+    
+    private void setListeners(){
+        
+        buttonQuit = (Button) findViewById(R.id.button_quit);        
+        buttonQuit.setOnClickListener(quitListener);
+        buttonRefresh = (Button) findViewById(R.id.button_refresh);
+        buttonRefresh.setOnClickListener(refreshListener);
+        buttonStopLogging = (Button) findViewById(R.id.button_stop_logging);
+        buttonStopLogging.setOnClickListener(stopLoggingListener);
+        textInfo = (TextView) findViewById(R.id.text_info);
+              
+    }
+    
+    //Display current status of the mobile
+    private void displayInfo(){
+    	/*if(mBound == false){
+    		Intent intent = new Intent(MainActivity.this, LoggingService.class);
+            startService(intent);
+            bindService(intent, mConnection, Context.BIND_AUTO_CREATE);            
+    	} */ 
+    	
+    	String toWrite = "Current Process: " + String.valueOf(mService.processCurrentPackage) + "\n"
+    					+ "batLevel: " + String.valueOf(mService.batLevel) + "\n"
+    					+ "batStatus: " + String.valueOf(mService.batStatus) + "\n"
+    					+ "GPSProviderStatus: " + String.valueOf(mService.GPSProviderStatus) + "\n"
+    					+ "networkProviderStatus: " + String.valueOf(mService.networkProviderStatus) + "\n"
+    					+ "3G network status: " + String.valueOf(mService.mobileState)
+    					+ "wifi network status: " + String.valueOf(mService.wifiState)
+    					+ "isLowMemory: " + String.valueOf(mService.isLowMemory);
+    	
+    	if(mService.mLocation != null){
+    		toWrite += "locAccuracy: " + String.valueOf(mService.mLocation.getAccuracy()) + "\n"
+					+ "locLatitude: " + String.valueOf(mService.mLocation.getLatitude()) + "\n"
+					+ "locLongitude: " + String.valueOf(mService.mLocation.getLongitude()) + "\n"
+					+ "locProvider: " + String.valueOf(mService.mLocation.getProvider()) + "\n"
+					+ "locSpeed: " + String.valueOf(mService.mLocation.getSpeed()) + "\n";
+    	} else {
+    		toWrite += "location: no location available!";
+    	}
+
+    	textInfo.setText(toWrite);
+    }  
+    
+    private void showEnableLocationDialog(){
+		AlertDialog.Builder builder = new AlertDialog.Builder(this);
+		builder.setTitle("開啟定位服務");		
+		builder.setMessage("這個程式可以記錄你的位置資訊。要開啟利用網路或GPS查詢位置的功能嗎?");
+		builder.setPositiveButton("開啟", new DialogInterface.OnClickListener() {
+			public void onClick(DialogInterface dialog, int whichButton) {				
+				Intent optionsIntent = new Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+				//optionsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+				startActivity(optionsIntent);
+				dialog.dismiss();				
+			}
+		});
+		builder.setNegativeButton("現在不要", new DialogInterface.OnClickListener() {
+			public void onClick(DialogInterface dialog, int whichButton) {
+				dialog.dismiss();
+			}
+		});
+		AlertDialog alert = builder.create();
+		alert.show();
+	}
     
     private OnClickListener quitListener = new OnClickListener(){
 		@Override
