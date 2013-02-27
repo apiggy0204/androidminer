@@ -105,11 +105,11 @@ public class MainActivity extends Activity {
     	String toWrite = "Current Process: " + String.valueOf(mService.processCurrentPackage) + "\n"
     					+ "batLevel: " + String.valueOf(mService.batLevel) + "\n"
     					+ "batStatus: " + String.valueOf(mService.batStatus) + "\n"
-    					+ "GPSProviderStatus: " + String.valueOf(mService.GPSProviderStatus) + "\n"
-    					+ "networkProviderStatus: " + String.valueOf(mService.networkProviderStatus) + "\n"
-    					+ "3G network status: " + String.valueOf(mService.mobileState)
-    					+ "wifi network status: " + String.valueOf(mService.wifiState)
-    					+ "isLowMemory: " + String.valueOf(mService.isLowMemory);
+    					+ "GPSProviderStatus: " + String.valueOf(mService.gpsStatus) + "\n"
+    					+ "networkProviderStatus: " + String.valueOf(mService.networkStatus) + "\n"
+    					+ "3G network status: " + String.valueOf(mService.mobileState) + "\n"
+    					+ "wifi network status: " + String.valueOf(mService.wifiState) + "\n"
+    					+ "isLowMemory: " + String.valueOf(mService.isLowMemory) + "\n";
     	
     	if(mService.mLocation != null){
     		toWrite += "locAccuracy: " + String.valueOf(mService.mLocation.getAccuracy()) + "\n"
@@ -118,7 +118,7 @@ public class MainActivity extends Activity {
 					+ "locProvider: " + String.valueOf(mService.mLocation.getProvider()) + "\n"
 					+ "locSpeed: " + String.valueOf(mService.mLocation.getSpeed()) + "\n";
     	} else {
-    		toWrite += "location: no location available!";
+    		toWrite += "location: no location available!" + "\n";
     	}
 
     	textInfo.setText(toWrite);

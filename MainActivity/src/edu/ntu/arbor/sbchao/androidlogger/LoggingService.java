@@ -1,15 +1,17 @@
 package edu.ntu.arbor.sbchao.androidlogger;
 
 import java.io.IOException;
+import java.text.DateFormat;
+import java.util.Date;
 
 import android.app.ActivityManager;
-import android.app.AlertDialog;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -28,7 +30,11 @@ import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 import android.text.format.Time;
 import android.util.Log;
-import android.view.WindowManager;
+import edu.ntu.arbor.sbchao.androidlogger.scheme.DaoMaster;
+import edu.ntu.arbor.sbchao.androidlogger.scheme.DaoMaster.DevOpenHelper;
+import edu.ntu.arbor.sbchao.androidlogger.scheme.DaoSession;
+import edu.ntu.arbor.sbchao.androidlogger.scheme.MobileLog;
+import edu.ntu.arbor.sbchao.androidlogger.scheme.MobileLogDao;
 
 public class LoggingService extends Service {
 
@@ -52,7 +58,7 @@ public class LoggingService extends Service {
 	int batVoltage;
 	int batStatus;
 	int batPlugged;
-	double batPercentage;
+	double batPct;
 	
 	//Location Information
 	private LocationManager mLocMgr;
@@ -61,8 +67,8 @@ public class LoggingService extends Service {
 	Location mLocation;
 	boolean isGPSProviderEnabled;	
 	boolean isNetworkProviderEnabled;
-	int GPSProviderStatus; //OUT_OF_SERVICE = 0; TEMPORARILY_UNAVAILABLE = 1; AVAILABLE = 2
-	int networkProviderStatus;
+	int gpsStatus; //OUT_OF_SERVICE = 0; TEMPORARILY_UNAVAILABLE = 1; AVAILABLE = 2
+	int networkStatus;
     
     //calling status
     TelephonyManager mTelMgr;
@@ -92,6 +98,15 @@ public class LoggingService extends Service {
 	long availMem;		
 	boolean isLowMemory;
 
+	
+    private SQLiteDatabase db;
+    private DaoMaster daoMaster;
+    private DaoSession daoSession;
+    private MobileLogDao mobileLogDao;
+    private Cursor cursor;
+	
+	
+	
     @Override
 	public void onCreate() {
 		// Start up the thread running the service.  Note that we create a
@@ -119,6 +134,14 @@ public class LoggingService extends Service {
 		mLogMgr.createNewLog();
 		
 		mDataMgr = new DataManager();
+		
+		
+		
+		DevOpenHelper helper = new DaoMaster.DevOpenHelper(this, "MobileLog", null);
+        db = helper.getWritableDatabase();
+        daoMaster = new DaoMaster(db);
+        daoSession = daoMaster.newSession();
+        mobileLogDao = daoSession.getMobileLogDao();
 		
 	}
 
@@ -193,6 +216,9 @@ public class LoggingService extends Service {
 				getNetworkInfo();		
 				monitorProcess();								
 				writeToLog();
+				
+				writeToDatabase();
+				
 				mServiceHandler.postDelayed(writingToLogTask, recordFreq);
 			} else {				
 				Log.v("writingToLogTask", "FINISHED!"); 
@@ -251,7 +277,7 @@ public class LoggingService extends Service {
 				batVoltage = intent.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 0);
 				batStatus = intent.getIntExtra(BatteryManager.EXTRA_STATUS, 0);
 				batPlugged = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0);				
-				batPercentage = (double) batLevel /(double) batScale;
+				batPct = (double) batLevel /(double) batScale;
 			}
 		}
 	};
@@ -300,8 +326,8 @@ public class LoggingService extends Service {
 	    public void onStatusChanged(String provider, int status, Bundle extras) {
 	    	Log.i("onStatusChanged", provider);
 	    	Log.i("onStatusChanged", String.valueOf(status));	    	
-	    	if(provider.equals("gps")) GPSProviderStatus = status;
-	    	if(provider.equals("network")) networkProviderStatus = status;	 	    	
+	    	if(provider.equals("gps")) gpsStatus = status;
+	    	if(provider.equals("network")) networkStatus = status;	 	    	
 	    }
 
 	    public void onProviderEnabled(String provider) {
@@ -410,8 +436,6 @@ public class LoggingService extends Service {
 		wifiState = wifiInfo.getState();
 		
 		if (isMobileConnected || isWifiConnected ) {
-			//Thread uploadThread = new Thread(uploadingTask);
-			//uploadThread.start();
 			Intent uploadIntent = new Intent(this, UploadingService.class);
 			startService(uploadIntent);
 		}
@@ -436,7 +460,7 @@ public class LoggingService extends Service {
 			
 	private void writeToLog(){
 		
-		Log.i("gpsStatus", String.valueOf(GPSProviderStatus));
+		Log.i("gpsStatus", String.valueOf(gpsStatus));
 		
 		//Setting data for writing
 		mDataMgr.set(DataManager.DEVICE_ID, String.valueOf(deviceId));
@@ -449,10 +473,10 @@ public class LoggingService extends Service {
 		mDataMgr.set(DataManager.RECORD_FREQUENCY, String.valueOf(recordFreq));
 		
 		mDataMgr.set(DataManager.BAT_STATUS, String.valueOf(batStatus));
-		mDataMgr.set(DataManager.BAT_PERCENTAGE, String.valueOf(batPercentage));
+		mDataMgr.set(DataManager.BAT_PERCENTAGE, String.valueOf(batPct));
 		
-		mDataMgr.set(DataManager.GPS_PROVIDER_STATUS, String.valueOf(GPSProviderStatus));
-		mDataMgr.set(DataManager.NETWORK_PROVIDER_STATUS, String.valueOf(networkProviderStatus));
+		mDataMgr.set(DataManager.GPS_PROVIDER_STATUS, String.valueOf(gpsStatus));
+		mDataMgr.set(DataManager.NETWORK_PROVIDER_STATUS, String.valueOf(networkStatus));
 		
 		if(mLocation != null){
 			mDataMgr.set(DataManager.LOC_ACCURACY, String.valueOf(mLocation.getAccuracy()));
@@ -488,6 +512,29 @@ public class LoggingService extends Service {
 		Log.v("writeToLogFile", "The file is " + getFilesDir() + "/" + mLogMgr.logFilename);
 		Log.v("writeToLogFile", "Write Successfully!");
 	}
+	
+	
+	private void writeToDatabase(){
+		
+		Log.d("Database", "Starting to insert new MobileLog");
+		        
+        MobileLog mobileLog = null;
+        if(mLocation != null){
+	        mobileLog = new MobileLog(null, deviceId, new Date(), recordFreq, batStatus, batPct, gpsStatus, networkStatus, 
+	        		mobileState.toString(), wifiState.toString(), processCurrentPackage, isLowMemory, (double) mLocation.getAccuracy(), mLocation.getLatitude(), mLocation.getLongitude(), mLocation.getProvider(), 
+	        		(double) mLocation.getSpeed());
+        }
+        else{
+	        mobileLog = new MobileLog(null, deviceId, new Date(), recordFreq, batStatus, batPct, gpsStatus, networkStatus, 
+	        		mobileState.toString(), wifiState.toString(), processCurrentPackage, isLowMemory, null, null, null, null, null); 
+        }
+ 
+        mobileLogDao.insert(mobileLog);
+        Log.d("Database", "Inserted new MobileLog, ID: " + mobileLog.getId());
+
+        //cursor.requery();
+        
+	};
 	
 }
 	
