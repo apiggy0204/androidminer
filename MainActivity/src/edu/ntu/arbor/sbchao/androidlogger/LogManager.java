@@ -28,7 +28,7 @@ import android.util.Log;
 public class LogManager {
 	
 	//static final String SERVER_PATH = "http://10.0.2.2/netdbmobileminer_test/";
-	static final String SERVER_PATH = "http://140.112.42.22/netdbmobileminer_test/";
+	static final String SERVER_PATH = "http://140.112.42.22:7380/netdbmobileminer_test/";
 	static final String LOG_DIR_PATH = "/AndroidLogger";
     static final String LOG_UNUPLOADED_PATH = "/Unuploaded";
     static final String LOG_UPLOADED_PATH = "/Uploaded";

@@ -12,8 +12,6 @@ public class AndroidMinerSchemeGenerator {
 	public static void main(String[] args) throws Exception {
         Schema schema = new Schema(1, "edu.ntu.arbor.sbchao.androidlogger.scheme");
 
-        //addNote(schema);
-        //addCustomerOrder(schema);
         addMobileLog(schema);
         
         new DaoGenerator().generateAll(schema, ".");
@@ -25,6 +23,8 @@ public class AndroidMinerSchemeGenerator {
     	mobileLog.addIdProperty();
     	mobileLog.addStringProperty(DataManager.DEVICE_ID).notNull();
     	mobileLog.addDateProperty(DataManager.TIME).notNull();
+    	mobileLog.addIntProperty("dayOfWeek").notNull();
+    	mobileLog.addIntProperty("hourOfDay").notNull(); 
     	mobileLog.addIntProperty(DataManager.RECORD_FREQUENCY).notNull();
     	mobileLog.addIntProperty(DataManager.BAT_STATUS).notNull();
     	mobileLog.addDoubleProperty(DataManager.BAT_PERCENTAGE).notNull();
@@ -40,6 +40,8 @@ public class AndroidMinerSchemeGenerator {
     	mobileLog.addDoubleProperty(DataManager.LOC_LONGITUDE);
     	mobileLog.addStringProperty(DataManager.LOC_PROVIDER);
     	mobileLog.addDoubleProperty(DataManager.LOC_SPEED);
+    	
+    	 	    	
     	
     }
     

@@ -8,5 +8,6 @@
 	<classpathentry kind="lib" path="libs/freemarker.jar"/>
 	<classpathentry kind="lib" path="libs/greenDAO.jar"/>
 	<classpathentry kind="lib" path="libs/greenDAO-generator.jar"/>
+	<classpathentry kind="lib" path="libs/achartengine-1.0.0.jar"/>
 	<classpathentry kind="output" path="bin/classes"/>
 </classpath>

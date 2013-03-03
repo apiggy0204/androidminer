@@ -43,7 +43,7 @@ public class LoggingService extends Service {
     private final IBinder mBinder = new LocalBinder();
         
     static boolean isServiceRunning = false;
-    static final int HIGH_RECORD_FREQ = 15000;      //10 seconds
+    static final int HIGH_RECORD_FREQ = 10000;      //10 seconds
     static final int LOW_RECORD_FREQ  = 120000;    //2 minutes
     int recordFreq = HIGH_RECORD_FREQ;
         
@@ -136,12 +136,13 @@ public class LoggingService extends Service {
 		mDataMgr = new DataManager();
 		
 		
-		
+		/*
 		DevOpenHelper helper = new DaoMaster.DevOpenHelper(this, "MobileLog", null);
         db = helper.getWritableDatabase();
         daoMaster = new DaoMaster(db);
         daoSession = daoMaster.newSession();
         mobileLogDao = daoSession.getMobileLogDao();
+        */
 		
 	}
 
@@ -217,7 +218,7 @@ public class LoggingService extends Service {
 				monitorProcess();								
 				writeToLog();
 				
-				writeToDatabase();
+				//writeToDatabase();
 				
 				mServiceHandler.postDelayed(writingToLogTask, recordFreq);
 			} else {				
@@ -467,8 +468,10 @@ public class LoggingService extends Service {
 		
 		Time now = new Time(Time.getCurrentTimezone());
 		now.setToNow();
-		String timeStr = String.valueOf(now.year) + "-" + String.valueOf(now.month) + "-" + String.valueOf(now.monthDay) 
+		
+		String timeStr = String.valueOf(now.year) + "-" + String.valueOf(now.month+1) + "-" + String.valueOf(now.monthDay)  //Month = [0-11]
 				+ " " + now.format("%T");
+		Log.d("setToNow", timeStr);
 		mDataMgr.set(DataManager.TIME, timeStr);
 		mDataMgr.set(DataManager.RECORD_FREQUENCY, String.valueOf(recordFreq));
 		
@@ -520,12 +523,12 @@ public class LoggingService extends Service {
 		        
         MobileLog mobileLog = null;
         if(mLocation != null){
-	        mobileLog = new MobileLog(null, deviceId, new Date(), recordFreq, batStatus, batPct, gpsStatus, networkStatus, 
+	        mobileLog = new MobileLog(null, deviceId, new Date(), new Date().getDay(), new Date().getHours(), recordFreq, batStatus, batPct, gpsStatus, networkStatus, 
 	        		mobileState.toString(), wifiState.toString(), processCurrentPackage, isLowMemory, (double) mLocation.getAccuracy(), mLocation.getLatitude(), mLocation.getLongitude(), mLocation.getProvider(), 
 	        		(double) mLocation.getSpeed());
         }
         else{
-	        mobileLog = new MobileLog(null, deviceId, new Date(), recordFreq, batStatus, batPct, gpsStatus, networkStatus, 
+	        mobileLog = new MobileLog(null, deviceId, new Date(), new Date().getDay(), new Date().getHours(), recordFreq, batStatus, batPct, gpsStatus, networkStatus, 
 	        		mobileState.toString(), wifiState.toString(), processCurrentPackage, isLowMemory, null, null, null, null, null); 
         }
  
