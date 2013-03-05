@@ -1,15 +1,17 @@
 package edu.ntu.arbor.sbchao.androidlogger;
 
 import java.io.IOException;
-import java.text.DateFormat;
 import java.util.Date;
+import java.util.List;
 
 import android.app.ActivityManager;
+import android.app.ActivityManager.RunningTaskInfo;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.location.Location;
@@ -17,6 +19,7 @@ import android.location.LocationListener;
 import android.location.LocationManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.net.TrafficStats;
 import android.os.BatteryManager;
 import android.os.Binder;
 import android.os.Bundle;
@@ -31,7 +34,6 @@ import android.telephony.TelephonyManager;
 import android.text.format.Time;
 import android.util.Log;
 import edu.ntu.arbor.sbchao.androidlogger.scheme.DaoMaster;
-import edu.ntu.arbor.sbchao.androidlogger.scheme.DaoMaster.DevOpenHelper;
 import edu.ntu.arbor.sbchao.androidlogger.scheme.DaoSession;
 import edu.ntu.arbor.sbchao.androidlogger.scheme.MobileLog;
 import edu.ntu.arbor.sbchao.androidlogger.scheme.MobileLogDao;
@@ -40,9 +42,10 @@ public class LoggingService extends Service {
 
     private Looper mServiceLooper;
     private ServiceHandler mServiceHandler;
-    private final IBinder mBinder = new LocalBinder();
-        
+    private final IBinder mBinder = new LocalBinder();        
     static boolean isServiceRunning = false;
+    
+    boolean isUsing = true;
     static final int HIGH_RECORD_FREQ = 10000;      //10 seconds
     static final int LOW_RECORD_FREQ  = 120000;    //2 minutes
     int recordFreq = HIGH_RECORD_FREQ;
@@ -94,7 +97,9 @@ public class LoggingService extends Service {
 	ActivityManager mActMgr;
 	ActivityManager.MemoryInfo memoryInfo = new ActivityManager.MemoryInfo();	
 	String processCurrentClass;
-	String processCurrentPackage;			
+	String processCurrentPackage;
+	String process2ndPackage;
+	String process3rdPackage;
 	long availMem;		
 	boolean isLowMemory;
 
@@ -299,11 +304,13 @@ public class LoggingService extends Service {
 		public void onReceive(Context context,Intent intent){
 			String action=intent.getAction();
 			Log.i("Android Logger",action);
-			if(Intent.ACTION_SCREEN_ON.equals(action)){				
+			if(Intent.ACTION_SCREEN_ON.equals(action)){	
+				isUsing = true;
 				Log.i("LOGGER_Screen","SCREEN IS ON");
 				recordFreq = HIGH_RECORD_FREQ;				
 			}else if (Intent.ACTION_SCREEN_OFF.equals(action)){				
 				Log.i("LOGGER_Screen","SCREEN IS OFF");
+				isUsing = false;
 				recordFreq = LOW_RECORD_FREQ;
 			}
 		}
@@ -441,16 +448,52 @@ public class LoggingService extends Service {
 			startService(uploadIntent);
 		}
 		
+		int myUid = Process.myUid();
+		
+		//PackageManager pm = getPackageManager();
+		//pm.get
+		
+		//int otherUid = Process.getUidForName("com.htc.launcher");
+		
+		/*
+		Log.i("myUid", String.valueOf(myUid));
+		Log.i("Traffic of this app: ", String.valueOf(TrafficStats.getUidRxBytes(myUid)));
+		Log.i("Traffic of this app2: ", String.valueOf(TrafficStats.getMobileRxBytes()));		
+		Log.i("otherUid", String.valueOf(otherUid));
+		Log.i("Traffic of other app: ", String.valueOf(TrafficStats.getUidRxBytes(otherUid)));		
+		*/
+		
+		
+		
+		
 	}
   	
 	private void monitorProcess(){
 		
 		//TODO running processes in the background
+		processCurrentPackage = process2ndPackage = process3rdPackage = null;
+		List<RunningTaskInfo> list = mActMgr.getRunningTasks(3);
+		if( list.size() > 0 ){ 
+			processCurrentPackage = list.get(0).topActivity.getPackageName();
+			Log.v("processCurrentPackage", processCurrentPackage);
+		}		
+		if( list.size() > 1 ){ 
+			process2ndPackage     = list.get(1).topActivity.getPackageName();
+			Log.v("process2ndPackage", process2ndPackage);
+		}
+		if( list.size() > 2 ){ 
+			process3rdPackage     = list.get(2).topActivity.getPackageName();
+			Log.v("process3rdPackage", process3rdPackage);
+		}
 		
-		processCurrentPackage = mActMgr.getRunningTasks(1).get(0).topActivity.getPackageName();
-		Log.v("processCurrentPackage", processCurrentPackage);
-		processCurrentClass = mActMgr.getRunningTasks(1).get(0).topActivity.getClassName();
-		Log.v("processCurrentClass", processCurrentClass);
+		
+		//processCurrentClass = mActMgr.getRunningTasks(1).get(0).topActivity.getClassName();
+		//Log.v("processCurrentClass", processCurrentClass);
+		
+		//List<RunningAppProcessInfo> list = mActMgr.getRunningAppProcesses();
+		//Log.i("processName: ", list.get(0).processName);
+		//Log.i("processName: ", list.get(1).processName);
+		//Log.i("processName: ", list.get(2).processName);
 		
 		mActMgr.getMemoryInfo(memoryInfo);
 		availMem = memoryInfo.availMem;				
@@ -471,7 +514,7 @@ public class LoggingService extends Service {
 		
 		String timeStr = String.valueOf(now.year) + "-" + String.valueOf(now.month+1) + "-" + String.valueOf(now.monthDay)  //Month = [0-11]
 				+ " " + now.format("%T");
-		Log.d("setToNow", timeStr);
+		
 		mDataMgr.set(DataManager.TIME, timeStr);
 		mDataMgr.set(DataManager.RECORD_FREQUENCY, String.valueOf(recordFreq));
 		
@@ -501,6 +544,7 @@ public class LoggingService extends Service {
 		
 		mDataMgr.set(DataManager.PROCESS_CURRENT_PACKAGE, String.valueOf(processCurrentPackage));
 		mDataMgr.set(DataManager.IS_LOW_MEMORY, String.valueOf(isLowMemory));
+		mDataMgr.set(DataManager.IS_USING, String.valueOf(isUsing));
 		
 		//Write to the log
 		try {

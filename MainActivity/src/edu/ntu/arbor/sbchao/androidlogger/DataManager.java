@@ -50,6 +50,7 @@ public class DataManager {
 	public static final String IS_LOW_MEMORY = "isLowMemory";	
 	public static final String TIME = "time";
 	public static final String RECORD_FREQUENCY = "recordFreq";
+	public static final String IS_USING = "isUsing";
 	
 	public DataManager(){
 		registerColumnNames();
@@ -115,6 +116,7 @@ public class DataManager {
 		reg(PROCESS_CURRENT_PACKAGE);
 		//reg(AVAIL_MEM);			
 		reg(IS_LOW_MEMORY);
+		reg(IS_USING);
 	}
 	
 	public boolean set(String columnName, String value){
