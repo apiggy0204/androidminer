@@ -1,4 +1,4 @@
-package edu.ntu.arbor.sbchao.androidlogger;
+package edu.ntu.arbor.sbchao.androidlogger.logmanager;
 
 import android.app.IntentService;
 import android.content.Intent;

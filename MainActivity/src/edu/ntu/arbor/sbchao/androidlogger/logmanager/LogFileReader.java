@@ -1,4 +1,4 @@
-package edu.ntu.arbor.sbchao.androidlogger;
+package edu.ntu.arbor.sbchao.androidlogger.logmanager;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -10,6 +10,8 @@ import java.util.Scanner;
 
 import org.apache.http.NameValuePair;
 import org.apache.http.message.BasicNameValuePair;
+
+import edu.ntu.arbor.sbchao.androidlogger.logmanager.DataManager;
 
 public class LogFileReader {
 	Scanner scanner = null;

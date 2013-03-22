@@ -35,15 +35,17 @@
         </activity>
         
 		<activity
-            android:name="edu.ntu.arbor.sbchao.androidlogger.DataViewingActivity">
+            android:name="edu.ntu.arbor.sbchao.androidlogger.AppUsageActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
         
+		<activity android:name="org.achartengine.GraphicalActivity" />
+        
         <service android:name=".LoggingService" />
-        <service android:name=".UploadingService" />
+        <service android:name="edu.ntu.arbor.sbchao.androidlogger.logmanager.UploadingService" />
         
         <receiver android:name="edu.ntu.arbor.sbchao.androidlogger.AutoStartServiceReceiver">
 			<intent-filter>

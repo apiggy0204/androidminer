@@ -1,4 +1,4 @@
-package edu.ntu.arbor.sbchao.androidlogger;
+package edu.ntu.arbor.sbchao.androidlogger.logmanager;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -51,9 +51,53 @@ public class DataManager {
 	public static final String TIME = "time";
 	public static final String RECORD_FREQUENCY = "recordFreq";
 	public static final String IS_USING = "isUsing";
+	public static final String HOUR_OF_DAY = "hourOfDay";
+	public static final String DAY_OF_WEEK = "dayOfWeek";
+	public static final String APP_NAME = "appName";
+	public static final String TRANSMITTED_BYTE = "transmittedByte";
+	public static final String RECEIVED_BYTE = "receivedByte";
 	
-	public DataManager(){
-		registerColumnNames();
+	public static DataManager getDefaultDataManager(){
+		DataManager mgr = new DataManager();
+		mgr.reg(DEVICE_ID);		
+		mgr.reg(TIME);
+		mgr.reg(RECORD_FREQUENCY);
+		
+	    //Battery information
+		mgr.reg(BAT_STATUS);
+		mgr.reg(BAT_PERCENTAGE);
+		
+		//Location Information		
+		mgr.reg(GPS_PROVIDER_STATUS);
+		mgr.reg(NETWORK_PROVIDER_STATUS);
+		mgr.reg(LOC_ACCURACY);
+	    mgr.reg(LOC_PROVIDER);
+	    mgr.reg(LOC_LATITUDE);
+	    mgr.reg(LOC_LONGITUDE);	        
+	    mgr.reg(LOC_SPEED);	    
+		
+		//network status		
+	    mgr.reg(MOBILE_STATE);		
+	    mgr.reg(WIFI_STATE);
+		
+	    mgr.reg(PROCESS_CURRENT_PACKAGE);			
+	    mgr.reg(IS_LOW_MEMORY);
+	    mgr.reg(IS_USING);
+		return mgr;
+	}
+	
+	public static DataManager getNetworkDataManager(){
+		DataManager mgr = new DataManager();
+		mgr.reg(DEVICE_ID);
+		mgr.reg(TIME);
+		mgr.reg(RECORD_FREQUENCY);
+		mgr.reg(MOBILE_STATE);		
+		mgr.reg(WIFI_STATE);
+		mgr.reg(TRANSMITTED_BYTE);
+		mgr.reg(RECEIVED_BYTE);
+		mgr.reg(APP_NAME);
+		mgr.reg(IS_USING);
+		return mgr;
 	}
 	
 	public int getColumnCount(){
@@ -69,6 +113,39 @@ public class DataManager {
 		this.mColumnNameList.add(columnName);		
 	}
 		
+	
+	
+	public boolean put(String columnName, String value){
+		if (mColumnNameList.contains(columnName)){
+			mMap.put(columnName, value);
+			return true;
+		}
+		else return false; 		
+	}
+	
+	public String get(String columnName){
+		if (mColumnNameList.contains(columnName)){
+			return mMap.get(columnName);			
+		}
+		else return null;
+	}
+	
+	public String toString(){
+		String str = "";
+		for (String columnName : mColumnNameList){
+			String value = mMap.get(columnName);			
+			if( value == null || value.equals("null")){
+				str += "\t";
+			} 
+			else {
+				str += value + "\t";
+			}
+		}
+		str += "\n";
+		return str;
+	}
+	
+	/*
 	private void registerColumnNames(){
 		reg(DEVICE_ID);		
 		reg(TIME);
@@ -117,36 +194,6 @@ public class DataManager {
 		//reg(AVAIL_MEM);			
 		reg(IS_LOW_MEMORY);
 		reg(IS_USING);
-	}
-	
-	public boolean set(String columnName, String value){
-		if (mColumnNameList.contains(columnName)){
-			mMap.put(columnName, value);
-			return true;
-		}
-		else return false; 		
-	}
-	
-	public String get(String columnName){
-		if (mColumnNameList.contains(columnName)){
-			return mMap.get(columnName);			
-		}
-		else return null;
-	}
-	
-	public String toString(){
-		String str = "";
-		for (String columnName : mColumnNameList){
-			String value = mMap.get(columnName);			
-			if( value == null || value.equals("null")){
-				str += "\t";
-			} 
-			else {
-				str += value + "\t";
-			}
-		}
-		str += "\n";
-		return str;
-	}
+	}*/
 	
 }

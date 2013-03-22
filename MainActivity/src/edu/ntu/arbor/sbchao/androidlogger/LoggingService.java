@@ -1,7 +1,7 @@
 package edu.ntu.arbor.sbchao.androidlogger;
 
 import java.io.IOException;
-import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 
 import android.app.ActivityManager;
@@ -11,15 +11,11 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.pm.PackageManager;
-import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
-import android.net.TrafficStats;
 import android.os.BatteryManager;
 import android.os.Binder;
 import android.os.Bundle;
@@ -33,10 +29,10 @@ import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 import android.text.format.Time;
 import android.util.Log;
-import edu.ntu.arbor.sbchao.androidlogger.scheme.DaoMaster;
-import edu.ntu.arbor.sbchao.androidlogger.scheme.DaoSession;
-import edu.ntu.arbor.sbchao.androidlogger.scheme.MobileLog;
-import edu.ntu.arbor.sbchao.androidlogger.scheme.MobileLogDao;
+import edu.ntu.arbor.sbchao.androidlogger.logmanager.DataManager;
+import edu.ntu.arbor.sbchao.androidlogger.logmanager.LogInfo;
+import edu.ntu.arbor.sbchao.androidlogger.logmanager.LogManager;
+import edu.ntu.arbor.sbchao.androidlogger.logmanager.UploadingService;
 
 public class LoggingService extends Service {
 
@@ -51,7 +47,7 @@ public class LoggingService extends Service {
     int recordFreq = HIGH_RECORD_FREQ;
         
     private static LogManager mLogMgr;
-    private static DataManager mDataMgr;
+    //private static DataManager mDataMgr;
     
 	String deviceId;
 	
@@ -102,14 +98,18 @@ public class LoggingService extends Service {
 	String process3rdPackage;
 	long availMem;		
 	boolean isLowMemory;
-
 	
+	//Network Traffic snapshots
+	TrafficSnapshot prevTraf = null;
+	TrafficSnapshot latestTraf = null;	
+	
+	/*
     private SQLiteDatabase db;
     private DaoMaster daoMaster;
     private DaoSession daoSession;
     private MobileLogDao mobileLogDao;
     private Cursor cursor;
-	
+	*/
 	
 	
     @Override
@@ -134,11 +134,18 @@ public class LoggingService extends Service {
 			Log.i("onStartCommand", "registering services");
 		}
 		
-		mLogMgr = new LogManager(this);		
-		mLogMgr.checkExternalStorage();
-		mLogMgr.createNewLog();
+		LogManager.addLogInfo("http://140.112.42.22:7380/netdbmobileminer_test/", "log", "AndroidLogger", "Unuploaded", "Uploaded", "log", DataManager.getDefaultDataManager());
+		LogManager.addLogInfo("http://140.112.42.22:7380/netdbmobileminer_test/network_traffic.php", "network", "AndroidLogger", "Unuploaded_network", "Uploaded_network", "network", DataManager.getNetworkDataManager());
+		//LogManager.addLogInfo("http://10.0.2.2/netdbmobileminer_test/", "log", "AndroidLogger", "Unuploaded", "Uploaded", "log", DataManager.getDefaultDataManager());
+		//LogManager.addLogInfo("http://10.0.2.2/netdbmobileminer_test/network.php", "network", "AndroidLogger", "Unuploaded_network", "Uploaded_network", "network", DataManager.getNetworkDataManager());				
 		
-		mDataMgr = new DataManager();
+		mLogMgr = new LogManager(this);			
+		mLogMgr.checkExternalStorage("log");
+		mLogMgr.createNewLog("log");
+		mLogMgr.checkExternalStorage("network");
+		mLogMgr.createNewLog("network");
+		
+		//mDataMgr = new DataManager();
 		
 		
 		/*
@@ -177,7 +184,7 @@ public class LoggingService extends Service {
 			if(!isServiceRunning){
 				Log.i("handleMessage", "The logging is not running...");
 				isServiceRunning = true;
-				mServiceHandler.post(writingToLogTask);				
+				mServiceHandler.post(writingToLogTask);
 				Log.i("handleMessage", "The logging is now running!");
 			} else {
 				Log.i("handleMessage", "The logging is already running...");
@@ -201,8 +208,10 @@ public class LoggingService extends Service {
 		unregisterServices();
 		isServiceRunning = false; //Stop the continuous logging
 		
-		try {
-			mLogMgr.logFos.close();
+		try {			
+			LogManager.getLogInfoByName("log").getLogFos().close();
+			LogManager.getLogInfoByName("network").getLogFos().close();
+			//mLogMgr.logFos.close();
 		} catch (IOException e) {
 			Log.e("onDestroy", "cannot close the file output stream");
 			e.printStackTrace();
@@ -219,33 +228,36 @@ public class LoggingService extends Service {
 		@Override
 		public void run() {			
 			if(isServiceRunning){
-				getNetworkInfo();		
-				monitorProcess();								
+				updateNetworkInfo();		
+				updateProcessInfo();
+				updateNetworkTrafficInfo();
+				uploadLog();
 				writeToLog();
-				
-				//writeToDatabase();
+				writeToNetworkLog();
 				
 				mServiceHandler.postDelayed(writingToLogTask, recordFreq);
 			} else {				
-				Log.v("writingToLogTask", "FINISHED!"); 
+				Log.v("writingToLogTask", "Finished. No more loggings!"); 
 			}
 		}
 	};
 	
+	/*
 	private Runnable writingToLogOnceTask = new Runnable(){
-
 		@Override
 		public void run() {
 			if(isServiceRunning){
-				getNetworkInfo();			
-				monitorProcess();								
+				updateNetworkInfo();			
+				updateProcessInfo();	
+				updateNetworkTrafficInfo();
+				uploadLog();
 				writeToLog(); //Write to the log
+				writeToNetworkLog();
 			} else {				
 				Log.v("writingToLogOnceTask", "FINISHED!"); 
 			}						
 		}
-		
-	};
+	};*/
 	
 	private void registerServices(){
 		registerReceiver(mBatteryChangedReceiver,new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
@@ -258,7 +270,7 @@ public class LoggingService extends Service {
 		mLocMgr.requestLocationUpdates(LocationManager.GPS_PROVIDER, MIN_LOC_INTERVAL, MIN_LOC_DISTANCE, mLocationListener);
 		
 		mTelMgr = (TelephonyManager) this.getSystemService(Context.TELEPHONY_SERVICE);
-		mTelMgr.listen(mPhoneStateListener, PhoneStateListener.LISTEN_CALL_STATE);
+		//mTelMgr.listen(mPhoneStateListener, PhoneStateListener.LISTEN_CALL_STATE);
 		
 		mConnMgr = (ConnectivityManager)this.getSystemService(Context.CONNECTIVITY_SERVICE);
 		
@@ -271,7 +283,7 @@ public class LoggingService extends Service {
 		unregisterReceiver(mScreenChangedReceiver);
 		
 		mLocMgr.removeUpdates(mLocationListener);
-		mTelMgr.listen(mPhoneStateListener, PhoneStateListener.LISTEN_NONE);		
+		//mTelMgr.listen(mPhoneStateListener, PhoneStateListener.LISTEN_NONE);		
 	}
 	
 	private BroadcastReceiver mBatteryChangedReceiver = new BroadcastReceiver(){ 
@@ -288,13 +300,16 @@ public class LoggingService extends Service {
 		}
 	};
 	
+	//Create new logs when a new day starts!
 	private BroadcastReceiver mDateChangedReceiver = new BroadcastReceiver(){
 		@Override
 		public void onReceive(Context context,Intent intent){
 			String action=intent.getAction();
 			if(Intent.ACTION_DATE_CHANGED.equals(action)){				
-				mLogMgr.createNewLog();
-				mLogMgr.moveToExternalStorage();								
+				mLogMgr.createNewLog("log");
+				mLogMgr.moveToExternalStorage("log");			
+				mLogMgr.createNewLog("network");
+				mLogMgr.moveToExternalStorage("network");
 			}
 		}
 	};
@@ -303,15 +318,15 @@ public class LoggingService extends Service {
 	private BroadcastReceiver mScreenChangedReceiver = new BroadcastReceiver(){ 
 		public void onReceive(Context context,Intent intent){
 			String action=intent.getAction();
-			Log.i("Android Logger",action);
+			Log.v("Android Logger",action);
 			if(Intent.ACTION_SCREEN_ON.equals(action)){	
 				isUsing = true;
-				Log.i("LOGGER_Screen","SCREEN IS ON");
+				Log.v("LOGGER_Screen","SCREEN IS ON");
 				recordFreq = HIGH_RECORD_FREQ;				
 			}else if (Intent.ACTION_SCREEN_OFF.equals(action)){				
-				Log.i("LOGGER_Screen","SCREEN IS OFF");
+				Log.v("LOGGER_Screen","SCREEN IS OFF");
 				isUsing = false;
-				recordFreq = LOW_RECORD_FREQ;
+				recordFreq = HIGH_RECORD_FREQ; //TODO
 			}
 		}
 	};
@@ -332,21 +347,21 @@ public class LoggingService extends Service {
 	    }
 		
 	    public void onStatusChanged(String provider, int status, Bundle extras) {
-	    	Log.i("onStatusChanged", provider);
-	    	Log.i("onStatusChanged", String.valueOf(status));	    	
+	    	Log.v("onStatusChanged", provider);
+	    	Log.v("onStatusChanged", String.valueOf(status));	    	
 	    	if(provider.equals("gps")) gpsStatus = status;
 	    	if(provider.equals("network")) networkStatus = status;	 	    	
 	    }
 
 	    public void onProviderEnabled(String provider) {
-	    	Log.i("onProviderEnables", provider);
+	    	Log.v("onProviderEnables", provider);
 	    	if(provider.equals("gps")) isGPSProviderEnabled = true;
 	    	if(provider.equals("network")) isNetworkProviderEnabled = true;
 	    	
 	    }
 
 	    public void onProviderDisabled(String provider) {
-	    	Log.i("onProviderDisables", provider);
+	    	Log.v("onProviderDisables", provider);
 	    	if(provider.equals("gps")) isGPSProviderEnabled = false;
 	    	if(provider.equals("network")) isNetworkProviderEnabled = false;
 	    }	
@@ -407,6 +422,7 @@ public class LoggingService extends Service {
 	    
 	}; 
 	
+	/*
 	private PhoneStateListener mPhoneStateListener = new PhoneStateListener(){
 		public void onCallStateChanged(int state, String incomingNumber){
 			Log.i("onCallStateChanged", String.valueOf(state));
@@ -418,9 +434,9 @@ public class LoggingService extends Service {
 			}
 			mServiceHandler.postDelayed(writingToLogOnceTask, 0);
 		}
-	};
+	};*/
 	
-	private void getNetworkInfo(){
+	private void updateNetworkInfo(){
 		
 		NetworkInfo activeNetworkInfo = mConnMgr.getActiveNetworkInfo();
 		if(activeNetworkInfo == null){ connectivity = false; } 
@@ -442,33 +458,46 @@ public class LoggingService extends Service {
 		isWifiFailover = wifiInfo.isFailover();
 		isWifiRoaming = wifiInfo.isRoaming();
 		wifiState = wifiInfo.getState();
-		
-		if (isMobileConnected || isWifiConnected ) {
-			Intent uploadIntent = new Intent(this, UploadingService.class);
-			startService(uploadIntent);
-		}
-		
-		int myUid = Process.myUid();
-		
-		//PackageManager pm = getPackageManager();
-		//pm.get
-		
-		//int otherUid = Process.getUidForName("com.htc.launcher");
+	}
+	
+	private void updateNetworkTrafficInfo(){
+		prevTraf = latestTraf;
+		latestTraf = new TrafficSnapshot(this);
 		
 		/*
-		Log.i("myUid", String.valueOf(myUid));
-		Log.i("Traffic of this app: ", String.valueOf(TrafficStats.getUidRxBytes(myUid)));
-		Log.i("Traffic of this app2: ", String.valueOf(TrafficStats.getMobileRxBytes()));		
-		Log.i("otherUid", String.valueOf(otherUid));
-		Log.i("Traffic of other app: ", String.valueOf(TrafficStats.getUidRxBytes(otherUid)));		
-		*/
+		if (prevTraf != null) {
+			for(Object uid :  prevTraf.appNames.keySet().toArray()){
+				Log.i("uid", String.valueOf(uid)); 
+			}
+			//delta_rx.setText(String.valueOf(latest.device.rx-previous.device.rx));
+			//delta_tx.setText(String.valueOf(latest.device.tx-previous.device.tx));
+		}*/
+			
+		/*
+		HashSet<Integer> intersection = new HashSet<Integer>(latestTraf.apps.keySet());
 		
+		if (prevTraf != null) {
+			intersection.retainAll(prevTraf.apps.keySet());
+		}
 		
-		
+		for (Integer uid : intersection) {
+			TrafficRecord latest = latestTraf.apps.get(uid);
+			TrafficRecord prev = ( prevTraf == null ? null : prevTraf.apps.get(uid));
+			
+			String appName = latestTraf.appNames.get(uid);
+			
+			if(prev != null && latest != null){				
+				if(latest.rx - prev.rx > 0 || latest.tx - prev.tx > 0){
+					Log.d("TrafficMonitor", "appName: " + appName + ", rx: " + String.valueOf(latest.rx - prev.rx));
+					Log.d("TrafficMonitor", "appName: " + appName + ", tx: " + String.valueOf(latest.tx - prev.tx));
+				}
+			}
+			//emitLog(latest_rec.tag, latest_rec, previous_rec, log);
+		}*/
 		
 	}
   	
-	private void monitorProcess(){
+	private void updateProcessInfo(){
 		
 		//TODO running processes in the background
 		processCurrentPackage = process2ndPackage = process3rdPackage = null;
@@ -500,67 +529,133 @@ public class LoggingService extends Service {
 		isLowMemory = memoryInfo.lowMemory;		
 	}
 	
-
+	//Upload whenever there is network connection
+	private void uploadLog(){
+		updateNetworkInfo();
+		if (isMobileConnected || isWifiConnected ) {
+			Intent uploadIntent = new Intent(this, UploadingService.class);
+			startService(uploadIntent);
+		}
+	}
 			
 	private void writeToLog(){
 		
-		Log.i("gpsStatus", String.valueOf(gpsStatus));
-		
 		//Setting data for writing
-		mDataMgr.set(DataManager.DEVICE_ID, String.valueOf(deviceId));
+		LogInfo logInfo = LogManager.getLogInfoByName("log");
+		DataManager dataMgr = logInfo.getDataMgr();
 		
+		dataMgr.put(DataManager.DEVICE_ID, String.valueOf(deviceId));		
 		Time now = new Time(Time.getCurrentTimezone());
 		now.setToNow();
 		
 		String timeStr = String.valueOf(now.year) + "-" + String.valueOf(now.month+1) + "-" + String.valueOf(now.monthDay)  //Month = [0-11]
 				+ " " + now.format("%T");
 		
-		mDataMgr.set(DataManager.TIME, timeStr);
-		mDataMgr.set(DataManager.RECORD_FREQUENCY, String.valueOf(recordFreq));
+		dataMgr.put(DataManager.TIME, timeStr);
+		dataMgr.put(DataManager.RECORD_FREQUENCY, String.valueOf(recordFreq));
 		
-		mDataMgr.set(DataManager.BAT_STATUS, String.valueOf(batStatus));
-		mDataMgr.set(DataManager.BAT_PERCENTAGE, String.valueOf(batPct));
+		dataMgr.put(DataManager.BAT_STATUS, String.valueOf(batStatus));
+		dataMgr.put(DataManager.BAT_PERCENTAGE, String.valueOf(batPct));
 		
-		mDataMgr.set(DataManager.GPS_PROVIDER_STATUS, String.valueOf(gpsStatus));
-		mDataMgr.set(DataManager.NETWORK_PROVIDER_STATUS, String.valueOf(networkStatus));
+		dataMgr.put(DataManager.GPS_PROVIDER_STATUS, String.valueOf(gpsStatus));
+		dataMgr.put(DataManager.NETWORK_PROVIDER_STATUS, String.valueOf(networkStatus));
 		
 		if(mLocation != null){
-			mDataMgr.set(DataManager.LOC_ACCURACY, String.valueOf(mLocation.getAccuracy()));
-			mDataMgr.set(DataManager.LOC_LATITUDE, String.valueOf(mLocation.getLatitude()));
-			mDataMgr.set(DataManager.LOC_LONGITUDE, String.valueOf(mLocation.getLongitude()));
-			mDataMgr.set(DataManager.LOC_PROVIDER, mLocation.getProvider());
-			mDataMgr.set(DataManager.LOC_SPEED, String.valueOf(mLocation.getSpeed()));			
+			dataMgr.put(DataManager.LOC_ACCURACY, String.valueOf(mLocation.getAccuracy()));
+			dataMgr.put(DataManager.LOC_LATITUDE, String.valueOf(mLocation.getLatitude()));
+			dataMgr.put(DataManager.LOC_LONGITUDE, String.valueOf(mLocation.getLongitude()));
+			dataMgr.put(DataManager.LOC_PROVIDER, mLocation.getProvider());
+			dataMgr.put(DataManager.LOC_SPEED, String.valueOf(mLocation.getSpeed()));			
 		}
 		else { 
-			mDataMgr.set(DataManager.LOC_ACCURACY, null);
-			mDataMgr.set(DataManager.LOC_LATITUDE, null);
-			mDataMgr.set(DataManager.LOC_LONGITUDE, null);
-			mDataMgr.set(DataManager.LOC_PROVIDER, null);
-			mDataMgr.set(DataManager.LOC_SPEED, null);
+			dataMgr.put(DataManager.LOC_ACCURACY, null);
+			dataMgr.put(DataManager.LOC_LATITUDE, null);
+			dataMgr.put(DataManager.LOC_LONGITUDE, null);
+			dataMgr.put(DataManager.LOC_PROVIDER, null);
+			dataMgr.put(DataManager.LOC_SPEED, null);
 		}
 		
-		mDataMgr.set(DataManager.MOBILE_STATE, String.valueOf(mobileState));
-		mDataMgr.set(DataManager.WIFI_STATE, String.valueOf(wifiState));
+		dataMgr.put(DataManager.MOBILE_STATE, String.valueOf(mobileState));
+		dataMgr.put(DataManager.WIFI_STATE, String.valueOf(wifiState));
 		
-		mDataMgr.set(DataManager.PROCESS_CURRENT_PACKAGE, String.valueOf(processCurrentPackage));
-		mDataMgr.set(DataManager.IS_LOW_MEMORY, String.valueOf(isLowMemory));
-		mDataMgr.set(DataManager.IS_USING, String.valueOf(isUsing));
+		dataMgr.put(DataManager.PROCESS_CURRENT_PACKAGE, String.valueOf(processCurrentPackage));
+		dataMgr.put(DataManager.IS_LOW_MEMORY, String.valueOf(isLowMemory));
+		dataMgr.put(DataManager.IS_USING, String.valueOf(isUsing));
 		
 		//Write to the log
 		try {
-			String toWrite = mDataMgr.toString();
-			
-			if (mLogMgr.logFos != null){
-				mLogMgr.logFos.write(toWrite.getBytes());
+			String toWrite = dataMgr.toString();			
+			if (logInfo.getLogFos() != null){
+				logInfo.getLogFos().write(toWrite.getBytes());
 			}
 		} catch (IOException e) {
-			Log.e("writeToLogFile", "Cannot write into the file: " + mLogMgr.logFilename);			
+			Log.e("writeToLogFile", "Cannot write into the file: " + logInfo.getLogFilename());			
 		}		
-		Log.v("writeToLogFile", "The file is " + getFilesDir() + "/" + mLogMgr.logFilename);
+		Log.v("writeToLogFile", "The file is " + getFilesDir() + "/" + logInfo.getLogFilename());
 		Log.v("writeToLogFile", "Write Successfully!");
 	}
 	
 	
+	private void writeToNetworkLog(){
+		
+		//Setting data for writing
+		LogInfo logInfo = LogManager.getLogInfoByName("network");
+		DataManager dataMgr = logInfo.getDataMgr();
+		
+		HashSet<Integer> intersection = new HashSet<Integer>(latestTraf.apps.keySet());
+		
+		if (prevTraf != null) {
+			intersection.retainAll(prevTraf.apps.keySet());
+		}
+		
+		for (Integer uid : intersection) {
+			TrafficRecord latest = latestTraf.apps.get(uid);
+			TrafficRecord prev = ( prevTraf == null ? null : prevTraf.apps.get(uid));
+			
+			String appName = latestTraf.appNames.get(uid);
+			
+			if(prev != null && latest != null){				
+				if(latest.rx - prev.rx > 0 || latest.tx - prev.tx > 0){
+					
+					Log.v("TrafficMonitor", "appName: " + appName + ", rx: " + String.valueOf(latest.rx - prev.rx));
+					Log.v("TrafficMonitor", "appName: " + appName + ", tx: " + String.valueOf(latest.tx - prev.tx));
+					
+					dataMgr.put(DataManager.DEVICE_ID, String.valueOf(deviceId));
+					Time now = new Time(Time.getCurrentTimezone());
+					now.setToNow();
+					
+					String timeStr = String.valueOf(now.year) + "-" + String.valueOf(now.month+1) + "-" + String.valueOf(now.monthDay)  //Month = [0-11]
+							+ " " + now.format("%T");
+					
+					dataMgr.put(DataManager.TIME, timeStr);
+					dataMgr.put(DataManager.RECORD_FREQUENCY, String.valueOf(recordFreq));
+					
+					dataMgr.put(DataManager.MOBILE_STATE, String.valueOf(mobileState));
+					dataMgr.put(DataManager.WIFI_STATE, String.valueOf(wifiState));
+					dataMgr.put(DataManager.TRANSMITTED_BYTE, String.valueOf(latest.tx - prev.tx));
+					dataMgr.put(DataManager.RECEIVED_BYTE, String.valueOf(latest.rx - prev.rx));
+					dataMgr.put(DataManager.APP_NAME, appName);
+					dataMgr.put(DataManager.IS_USING, String.valueOf(isUsing));
+					
+					//Write to the log
+					try {
+						String toWrite = dataMgr.toString();
+						if (logInfo.getLogFos() != null){
+							logInfo.getLogFos().write(toWrite.getBytes());
+						}
+					} catch (IOException e) {
+						Log.e("writeToLogFile", "Cannot write into the file: " + logInfo.getLogFilename());			
+					}		
+					Log.v("writeToLogFile", "The file is " + getFilesDir() + "/" + logInfo.getLogFilename());
+					Log.v("writeToLogFile", "Write Successfully!");
+				}
+			}
+		}
+		
+		
+	}
+	
+	/*
 	private void writeToDatabase(){
 		
 		Log.d("Database", "Starting to insert new MobileLog");
@@ -581,7 +676,7 @@ public class LoggingService extends Service {
 
         //cursor.requery();
         
-	};
+	};*/
 	
 }
 	

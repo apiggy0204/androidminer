@@ -28,7 +28,6 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
-        android:layout_toLeftOf="@+id/button2"
         android:text="Refresh" />
     
 
@@ -78,14 +77,7 @@
     </TabHost>
      -->
 
-    <TextView
-        android:id="@+id/text_info"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentTop="true"
-        android:text="TextView" />
-
+    <!-- 
     <TextView
         android:id="@+id/text_app_usage"
         android:layout_width="wrap_content"
@@ -124,5 +116,13 @@
         android:layout_alignBottom="@+id/button_time_filter"
         android:layout_toRightOf="@+id/button_time_filter"
         android:text="Cancel" />
-	 
+	  -->
+
+    <TextView
+        android:id="@+id/text_info"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:text="Info" />
+	  
 </RelativeLayout>

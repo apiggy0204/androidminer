@@ -5,7 +5,7 @@ import de.greenrobot.daogenerator.Entity;
 import de.greenrobot.daogenerator.Property;
 import de.greenrobot.daogenerator.Schema;
 import de.greenrobot.daogenerator.ToMany;
-import edu.ntu.arbor.sbchao.androidlogger.DataManager;
+import edu.ntu.arbor.sbchao.androidlogger.logmanager.DataManager;
 
 public class AndroidMinerSchemeGenerator {
 
