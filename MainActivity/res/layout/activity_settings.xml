@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen  xmlns:android="http://schemas.android.com/apk/res/android"
+    android:title="Settings"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical" >
+    
+    <CheckBoxPreference   
+        android:id="@+id/checkbox_allow_logging"
+        android:key="pref_allow_logging"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:title="Allow logging in background"
+        android:summaryOn="The logger will collect data in background."  
+        android:summaryOff="The logger will not collect data anymore."  
+        />
+    <!-- android:key="pref_allow_logging" -->
+    
+    <CheckBoxPreference   
+        android:id="@+id/checkbox_allow_3G"
+        android:key="pref_allow_3G_upload"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:title="Allow upload data via 3G"
+        android:summaryOn="Allowing this may cost you much!"  
+        android:summaryOff="Data will be uploaded via Wi-Fi only."
+        android:defaultValue="false"  
+        />
+	<!-- android:key="pref_allow_3G_upload" -->
+
+
+</PreferenceScreen>

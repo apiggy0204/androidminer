@@ -37,11 +37,12 @@ public class MobileLogDao extends AbstractDao<MobileLog, Long> {
         public final static Property MobileState = new Property(11, String.class, "mobileState", false, "MOBILE_STATE");
         public final static Property ProcessCurrentPackage = new Property(12, String.class, "processCurrentPackage", false, "PROCESS_CURRENT_PACKAGE");
         public final static Property IsLowMemory = new Property(13, boolean.class, "isLowMemory", false, "IS_LOW_MEMORY");
-        public final static Property LocAcc = new Property(14, Double.class, "locAcc", false, "LOC_ACC");
-        public final static Property Lat = new Property(15, Double.class, "lat", false, "LAT");
-        public final static Property Lon = new Property(16, Double.class, "lon", false, "LON");
-        public final static Property LocProvider = new Property(17, String.class, "locProvider", false, "LOC_PROVIDER");
-        public final static Property Speed = new Property(18, Double.class, "speed", false, "SPEED");
+        public final static Property IsUsing = new Property(14, boolean.class, "isUsing", false, "IS_USING");
+        public final static Property LocAcc = new Property(15, Double.class, "locAcc", false, "LOC_ACC");
+        public final static Property Lat = new Property(16, Double.class, "lat", false, "LAT");
+        public final static Property Lon = new Property(17, Double.class, "lon", false, "LON");
+        public final static Property LocProvider = new Property(18, String.class, "locProvider", false, "LOC_PROVIDER");
+        public final static Property Speed = new Property(19, Double.class, "speed", false, "SPEED");
     };
 
 
@@ -71,11 +72,12 @@ public class MobileLogDao extends AbstractDao<MobileLog, Long> {
                 "'MOBILE_STATE' TEXT NOT NULL ," + // 11: mobileState
                 "'PROCESS_CURRENT_PACKAGE' TEXT NOT NULL ," + // 12: processCurrentPackage
                 "'IS_LOW_MEMORY' INTEGER NOT NULL ," + // 13: isLowMemory
-                "'LOC_ACC' REAL," + // 14: locAcc
-                "'LAT' REAL," + // 15: lat
-                "'LON' REAL," + // 16: lon
-                "'LOC_PROVIDER' TEXT," + // 17: locProvider
-                "'SPEED' REAL);"); // 18: speed
+                "'IS_USING' INTEGER NOT NULL ," + // 14: isUsing
+                "'LOC_ACC' REAL," + // 15: locAcc
+                "'LAT' REAL," + // 16: lat
+                "'LON' REAL," + // 17: lon
+                "'LOC_PROVIDER' TEXT," + // 18: locProvider
+                "'SPEED' REAL);"); // 19: speed
     }
 
     /** Drops the underlying database table. */
@@ -106,30 +108,31 @@ public class MobileLogDao extends AbstractDao<MobileLog, Long> {
         stmt.bindString(12, entity.getMobileState());
         stmt.bindString(13, entity.getProcessCurrentPackage());
         stmt.bindLong(14, entity.getIsLowMemory() ? 1l: 0l);
+        stmt.bindLong(15, entity.getIsUsing() ? 1l: 0l);
  
         Double locAcc = entity.getLocAcc();
         if (locAcc != null) {
-            stmt.bindDouble(15, locAcc);
+            stmt.bindDouble(16, locAcc);
         }
  
         Double lat = entity.getLat();
         if (lat != null) {
-            stmt.bindDouble(16, lat);
+            stmt.bindDouble(17, lat);
         }
  
         Double lon = entity.getLon();
         if (lon != null) {
-            stmt.bindDouble(17, lon);
+            stmt.bindDouble(18, lon);
         }
  
         String locProvider = entity.getLocProvider();
         if (locProvider != null) {
-            stmt.bindString(18, locProvider);
+            stmt.bindString(19, locProvider);
         }
  
         Double speed = entity.getSpeed();
         if (speed != null) {
-            stmt.bindDouble(19, speed);
+            stmt.bindDouble(20, speed);
         }
     }
 
@@ -157,11 +160,12 @@ public class MobileLogDao extends AbstractDao<MobileLog, Long> {
             cursor.getString(offset + 11), // mobileState
             cursor.getString(offset + 12), // processCurrentPackage
             cursor.getShort(offset + 13) != 0, // isLowMemory
-            cursor.isNull(offset + 14) ? null : cursor.getDouble(offset + 14), // locAcc
-            cursor.isNull(offset + 15) ? null : cursor.getDouble(offset + 15), // lat
-            cursor.isNull(offset + 16) ? null : cursor.getDouble(offset + 16), // lon
-            cursor.isNull(offset + 17) ? null : cursor.getString(offset + 17), // locProvider
-            cursor.isNull(offset + 18) ? null : cursor.getDouble(offset + 18) // speed
+            cursor.getShort(offset + 14) != 0, // isUsing
+            cursor.isNull(offset + 15) ? null : cursor.getDouble(offset + 15), // locAcc
+            cursor.isNull(offset + 16) ? null : cursor.getDouble(offset + 16), // lat
+            cursor.isNull(offset + 17) ? null : cursor.getDouble(offset + 17), // lon
+            cursor.isNull(offset + 18) ? null : cursor.getString(offset + 18), // locProvider
+            cursor.isNull(offset + 19) ? null : cursor.getDouble(offset + 19) // speed
         );
         return entity;
     }
@@ -183,11 +187,12 @@ public class MobileLogDao extends AbstractDao<MobileLog, Long> {
         entity.setMobileState(cursor.getString(offset + 11));
         entity.setProcessCurrentPackage(cursor.getString(offset + 12));
         entity.setIsLowMemory(cursor.getShort(offset + 13) != 0);
-        entity.setLocAcc(cursor.isNull(offset + 14) ? null : cursor.getDouble(offset + 14));
-        entity.setLat(cursor.isNull(offset + 15) ? null : cursor.getDouble(offset + 15));
-        entity.setLon(cursor.isNull(offset + 16) ? null : cursor.getDouble(offset + 16));
-        entity.setLocProvider(cursor.isNull(offset + 17) ? null : cursor.getString(offset + 17));
-        entity.setSpeed(cursor.isNull(offset + 18) ? null : cursor.getDouble(offset + 18));
+        entity.setIsUsing(cursor.getShort(offset + 14) != 0);
+        entity.setLocAcc(cursor.isNull(offset + 15) ? null : cursor.getDouble(offset + 15));
+        entity.setLat(cursor.isNull(offset + 16) ? null : cursor.getDouble(offset + 16));
+        entity.setLon(cursor.isNull(offset + 17) ? null : cursor.getDouble(offset + 17));
+        entity.setLocProvider(cursor.isNull(offset + 18) ? null : cursor.getString(offset + 18));
+        entity.setSpeed(cursor.isNull(offset + 19) ? null : cursor.getDouble(offset + 19));
      }
     
     /** @inheritdoc */

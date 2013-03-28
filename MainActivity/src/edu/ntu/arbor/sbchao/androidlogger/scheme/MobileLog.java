@@ -25,6 +25,7 @@ public class MobileLog {
     /** Not-null value. */
     private String processCurrentPackage;
     private boolean isLowMemory;
+    private boolean isUsing;
     private Double locAcc;
     private Double lat;
     private Double lon;
@@ -38,7 +39,7 @@ public class MobileLog {
         this.id = id;
     }
 
-    public MobileLog(Long id, String deviceId, java.util.Date time, int dayOfWeek, int hourOfDay, int recordFreq, int batStatus, double batPct, int gpsStatus, int networkStatus, String wifiState, String mobileState, String processCurrentPackage, boolean isLowMemory, Double locAcc, Double lat, Double lon, String locProvider, Double speed) {
+    public MobileLog(Long id, String deviceId, java.util.Date time, int dayOfWeek, int hourOfDay, int recordFreq, int batStatus, double batPct, int gpsStatus, int networkStatus, String wifiState, String mobileState, String processCurrentPackage, boolean isLowMemory, boolean isUsing, Double locAcc, Double lat, Double lon, String locProvider, Double speed) {
         this.id = id;
         this.deviceId = deviceId;
         this.time = time;
@@ -53,6 +54,7 @@ public class MobileLog {
         this.mobileState = mobileState;
         this.processCurrentPackage = processCurrentPackage;
         this.isLowMemory = isLowMemory;
+        this.isUsing = isUsing;
         this.locAcc = locAcc;
         this.lat = lat;
         this.lon = lon;
@@ -180,6 +182,14 @@ public class MobileLog {
 
     public void setIsLowMemory(boolean isLowMemory) {
         this.isLowMemory = isLowMemory;
+    }
+
+    public boolean getIsUsing() {
+        return isUsing;
+    }
+
+    public void setIsUsing(boolean isUsing) {
+        this.isUsing = isUsing;
     }
 
     public Double getLocAcc() {

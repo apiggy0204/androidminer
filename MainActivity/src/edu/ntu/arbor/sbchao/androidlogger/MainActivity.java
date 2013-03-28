@@ -1,16 +1,8 @@
 package edu.ntu.arbor.sbchao.androidlogger;
 
-import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
-
-import org.achartengine.ChartFactory;
-import org.achartengine.GraphicalView;
-import org.achartengine.chart.BarChart.Type;
-import org.achartengine.model.CategorySeries;
-import org.achartengine.model.XYMultipleSeriesDataset;
-import org.achartengine.renderer.SimpleSeriesRenderer;
-import org.achartengine.renderer.XYMultipleSeriesRenderer;
-import org.achartengine.renderer.XYMultipleSeriesRenderer.Orientation;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -20,50 +12,77 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.database.sqlite.SQLiteDatabase;
-import android.graphics.Color;
-import android.graphics.Paint.Align;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Message;
 import android.util.Log;
 import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 import android.widget.Button;
-import android.widget.RelativeLayout;
-import android.widget.Spinner;
 import android.widget.TextView;
 import de.greenrobot.dao.QueryBuilder;
 import edu.ntu.arbor.sbchao.androidlogger.LoggingService.LocalBinder;
 import edu.ntu.arbor.sbchao.androidlogger.scheme.DaoMaster;
 import edu.ntu.arbor.sbchao.androidlogger.scheme.DaoMaster.DevOpenHelper;
 import edu.ntu.arbor.sbchao.androidlogger.scheme.DaoSession;
-import edu.ntu.arbor.sbchao.androidlogger.scheme.MobileLog;
 import edu.ntu.arbor.sbchao.androidlogger.scheme.MobileLogDao;
-import edu.ntu.arbor.sbchao.androidlogger.scheme.MobileLogDao.Properties;
+import edu.ntu.arbor.sbchao.androidlogger.scheme.NetworkLog;
+import edu.ntu.arbor.sbchao.androidlogger.scheme.NetworkLogDao;
+import edu.ntu.arbor.sbchao.androidlogger.scheme.NetworkLogDao.Properties;
 
 public class MainActivity extends Activity {
+	
+	private static final int UPDATE_INFO = 0x0000;
+	private static final int ENABLE_LOCATION_PROVIDER = 0x0001;
 	
 	private Button buttonQuit;
 	private Button buttonRefresh;
 	private Button buttonStopLogging;
-	private TextView textInfo;
-	private TextView textAppUsage;
-	private Spinner spinner1;
-	private Spinner spinner2;
+	//private TextView textInfo;
+	//private TextView textAppUsage;
+	//private Spinner spinner1;
+	//private Spinner spinner2;
+	/*
 	private Button buttonTimeFilter;
 	private Button buttonCancelTimeFilter;
 	private Button buttonHourlyUsage;
 	private Button buttonDailyUsage;
+	*/
 	
-	boolean mBound = false;
-	LoggingService mService = null;
+	private TextView text3GTodayTx;
+	private TextView text3GTodayRx;
+	private TextView text3GTodayTotal;
+	private TextView textWifiTodayTx;
+	private TextView textWifiTodayRx;
+	private TextView textWifiTodayTotal;
+	private TextView text3GWeekTx;
+	private TextView text3GWeekRx;
+	private TextView text3GWeekTotal;
+	private TextView text3GMonthTx;
+	private TextView text3GMonthRx;
+	private TextView text3GMonthTotal;
+	private TextView textWifiWeekTx;
+	private TextView textWifiWeekRx;
+	private TextView textWifiWeekTotal;
+	private TextView textWifiMonthTx;
+	private TextView textWifiMonthRx;
+	private TextView textWifiMonthTotal;
 	
+	private boolean mBound = false;	
+	private LoggingService mService = null;
+	private ThreadHandler mHandler = new ThreadHandler();
+	
+	//Local database
 	private SQLiteDatabase db;
 	private DaoMaster daoMaster;
 	private DaoSession daoSession;
 	private MobileLogDao mobileLogDao;
+	private NetworkLogDao networkLogDao;
+	
+	private static int UPDATE_FREQUENCY = 10000;
 	
 	private ServiceConnection mConnection = new ServiceConnection(){
 		@Override
@@ -81,6 +100,34 @@ public class MainActivity extends Activity {
 	};
 	
 	
+    private final class ThreadHandler extends Handler {
+	    public ThreadHandler() {
+            super();
+        }
+		@Override
+		public void handleMessage(Message msg) {						
+			switch(msg.what){
+				case UPDATE_INFO:
+					if(mBound){
+						updateStatus();
+						updateNetworkTraffic();
+					}
+					mHandler.postDelayed(updateInfoThread, UPDATE_FREQUENCY);
+					break;
+				case ENABLE_LOCATION_PROVIDER:
+					if(mBound && (!mService.isGPSProviderEnabled && !mService.isMobileConnected)){
+						showEnableLocationDialog();
+					} else {
+						mHandler.postDelayed(enableLocationProviderThread, 1000);
+					}
+					break;
+				default:
+					assert(false);
+					break;
+			}
+	    }
+    }
+    
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -91,26 +138,17 @@ public class MainActivity extends Activity {
         //Start LoggingService
         Intent intent = new Intent(MainActivity.this, LoggingService.class);
         startService(intent);
-        
+                        
         //Ask user to enable location providers
-        showEnableLocationDialog();
+        mHandler.postDelayed(enableLocationProviderThread, 1000);
         
-        //Access local databases
-        /*
+        //Set up local databases
         DevOpenHelper helper = new DaoMaster.DevOpenHelper(this, "MobileLog", null);
         db = helper.getWritableDatabase();
         daoMaster = new DaoMaster(db);
         daoSession = daoMaster.newSession();
         mobileLogDao = daoSession.getMobileLogDao();
-        */ 
-        
-        /*
-        final GraphicalView gv = createIntent();
-        RelativeLayout rl = (RelativeLayout) findViewById(R.id.main_relative_layout);
-        rl.addView(gv);*/
-        
-
-
+        networkLogDao = daoSession.getNetworkLogDao();
     }
     
     @Override
@@ -118,7 +156,8 @@ public class MainActivity extends Activity {
         super.onStart();
         // Bind to LoggingService
         Intent intent = new Intent(MainActivity.this, LoggingService.class);
-        bindService(intent, mConnection, Context.BIND_AUTO_CREATE);        						
+        bindService(intent, mConnection, Context.BIND_AUTO_CREATE);  
+        mHandler.postDelayed(updateInfoThread, 5000);
     }
     
     @Override
@@ -134,10 +173,73 @@ public class MainActivity extends Activity {
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.activity_main, menu);
+        //getMenuInflater().inflate(R.menu.activity_main, menu);
+    	menu.add(0, Menu.FIRST, 0, "Settings...");
         return true;
     }
     
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch(item.getItemId()) {
+        case Menu.FIRST:
+        	Log.i("onOptionsItemSelected", "selected!");
+            Intent intent = new Intent();            
+            intent.setClass(this, SettingsActivity.class);
+            startActivity(intent);
+            break;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+    
+    private Runnable updateInfoThread = new Runnable(){
+		@Override
+		public void run() {
+			try {
+				Message msg = new Message();
+				msg.what = UPDATE_INFO;
+				mHandler.sendMessage(msg);
+			} catch(Exception e) {
+				e.printStackTrace();
+				Log.e("UpdateInfoThread", e.getMessage());
+			} finally {
+				//Nothing
+			}
+		}
+    };
+    
+    private Runnable enableLocationProviderThread = new Runnable(){
+		@Override
+		public void run() {
+			try {
+				Message msg = new Message();
+				msg.what = ENABLE_LOCATION_PROVIDER;
+				mHandler.sendMessage(msg);
+			} catch(Exception e) {
+				e.printStackTrace();
+				Log.e("UpdateInfoThread", e.getMessage());
+			} finally {
+				//Nothing
+			}
+		}
+    };
+    
+	private TextView textApp;
+	private TextView textApp2;
+	private TextView textApp3;
+	private TextView textBatLevel;
+	private TextView textBatStatus;
+	private TextView textGPSProvider;
+	private TextView textNetworkProvider;
+	private TextView text3G;
+	private TextView textWifi;
+	private TextView textIsLowMemory;
+	private TextView textLocAcc;
+	private TextView textLat;
+	private TextView textLon;
+	private TextView textProvider;
+	private TextView textSpeed;
+
+
     private void addUiListeners(){
         
         buttonQuit = (Button) findViewById(R.id.button_quit);        
@@ -146,59 +248,113 @@ public class MainActivity extends Activity {
         buttonRefresh.setOnClickListener(refreshListener);
         buttonStopLogging = (Button) findViewById(R.id.button_stop_logging);
         buttonStopLogging.setOnClickListener(stopLoggingListener);
-        textInfo = (TextView) findViewById(R.id.text_info);
+        //textInfo = (TextView) findViewById(R.id.text_info);
         
-        /*
-        buttonHourlyUsage = (Button) findViewById(R.id.button_hourly_app_usage);
-        buttonHourlyUsage.setOnClickListener(new OnClickListener(){
-			@Override
-			public void onClick(View arg0) {
-				Intent i = new Intent(MainActivity.this, AppUsageActivity.class);
-				Bundle extras = new Bundle();
-				extras.putString("mode", AppUsageActivity.MODE_HOURLY);
-				i.putExtras(extras);
-				startActivity(i);
-			}});
-        buttonDailyUsage = (Button) findViewById(R.id.button_daily_app_usage);
-        buttonDailyUsage.setOnClickListener(new OnClickListener(){
-			@Override
-			public void onClick(View arg0) {
-				Intent i = new Intent(MainActivity.this, AppUsageActivity.class);
-				Bundle extras = new Bundle();
-				extras.putString("mode", AppUsageActivity.MODE_DAILY);
-				i.putExtras(extras);
-				startActivity(i);
-			}});
-        */
+        textApp = (TextView) findViewById(R.id.text_app);
+        textApp2 = (TextView) findViewById(R.id.text_app2);
+        textApp3 = (TextView) findViewById(R.id.text_app3);
+        textBatLevel = (TextView) findViewById(R.id.text_bat_level);
+        textBatStatus = (TextView) findViewById(R.id.text_bat_status);
+        textGPSProvider = (TextView) findViewById(R.id.text_gps_provider);
+        textNetworkProvider = (TextView) findViewById(R.id.text_network_provider);
+        text3G = (TextView) findViewById(R.id.text_3G);
+        textWifi = (TextView) findViewById(R.id.text_wifi);
+        textIsLowMemory = (TextView) findViewById(R.id.text_is_low_memory);
+        textLocAcc = (TextView) findViewById(R.id.text_loc_acc);
+        textLat = (TextView) findViewById(R.id.text_lat);
+        textLon = (TextView) findViewById(R.id.text_lon);
+        textProvider = (TextView) findViewById(R.id.text_loc_provider);
+        textSpeed = (TextView) findViewById(R.id.text_speed);
+           
+        text3GTodayTx = (TextView) findViewById(R.id.text_3G_today_tx);
+        text3GTodayRx = (TextView) findViewById(R.id.text_3G_today_rx);
+        text3GTodayTotal = (TextView) findViewById(R.id.text_3G_today_total);
         
-        /*
-        textAppUsage = (TextView) findViewById(R.id.text_app_usage);
-        spinner1 = (Spinner) findViewById(R.id.spinner1);
-        spinner2 = (Spinner) findViewById(R.id.spinner2);
-        buttonTimeFilter = (Button) findViewById(R.id.button_time_filter);
-        buttonTimeFilter.setOnClickListener(filterListener);
-        buttonCancelTimeFilter = (Button) findViewById(R.id.button_cancel_time_filter);
-        buttonCancelTimeFilter.setOnClickListener(cancelFilterListener);
-        */
+        text3GWeekTx = (TextView) findViewById(R.id.text_3G_week_tx);
+        text3GWeekRx = (TextView) findViewById(R.id.text_3G_week_rx);
+        text3GWeekTotal = (TextView) findViewById(R.id.text_3G_week_total);
         
-        /*
-        String [] nums = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23"};
-        ArrayAdapter<String> numList = new ArrayAdapter<String>(MainActivity.this, android.R.layout.simple_spinner_item, nums);
-        spinner1.setAdapter(numList);
-        spinner2.setAdapter(numList);
-        */
+        text3GMonthTx = (TextView) findViewById(R.id.text_3G_month_tx);
+        text3GMonthRx = (TextView) findViewById(R.id.text_3G_month_rx);
+        text3GMonthTotal = (TextView) findViewById(R.id.text_3G_month_total);
+        
+        textWifiTodayTx = (TextView) findViewById(R.id.text_wifi_today_tx);
+        textWifiTodayRx = (TextView) findViewById(R.id.text_wifi_today_rx);
+        textWifiTodayTotal = (TextView) findViewById(R.id.text_wifi_today_total);
+        
+        textWifiWeekTx = (TextView) findViewById(R.id.text_wifi_week_tx);
+        textWifiWeekRx = (TextView) findViewById(R.id.text_wifi_week_rx);
+        textWifiWeekTotal = (TextView) findViewById(R.id.text_wifi_week_total);  
+
+        textWifiMonthTx = (TextView) findViewById(R.id.text_wifi_month_tx);
+        textWifiMonthRx = (TextView) findViewById(R.id.text_wifi_month_rx);
+        textWifiMonthTotal = (TextView) findViewById(R.id.text_wifi_month_total);  
+       
     }
     
     //Display current status of the mobile
-    private void displayInfo(){
-    	if(mBound == false){
-    		Intent intent = new Intent(MainActivity.this, LoggingService.class);
-            startService(intent);
-            bindService(intent, mConnection, Context.BIND_AUTO_CREATE);            
-    	} 
+    private void updateStatus(){
     	
-    	else {
-    		
+    	if(mBound) {
+            textApp.setText(String.valueOf(mService.processCurrentPackage));
+            textApp2.setText(String.valueOf(mService.process2ndPackage));
+            textApp3.setText(String.valueOf(mService.process3rdPackage));
+            textBatLevel.setText(String.valueOf(mService.batLevel));
+            //textBatStatus.setText(String.valueOf(mService.batStatus));
+            switch(mService.batStatus){
+            	case 1:
+            		textBatStatus.setText("UNKNOWN");
+            		break;
+            	case 2:
+            		textBatStatus.setText("CHARGING");
+            		break;
+            	case 3:
+            		textBatStatus.setText("DISCHARGING");
+            		break;
+            	case 4:
+            		textBatStatus.setText("NOT CHARGING");
+            		break;
+            	case 5:
+            		textBatStatus.setText("FULL");
+            		break;
+            }
+            //textGPSProvider.setText(String.valueOf(mService.gpsStatus));
+            //textNetworkProvider.setText(String.valueOf(mService.networkStatus));
+            switch(mService.gpsStatus){
+            	case 0:
+            		textGPSProvider.setText("OUT_OF_SERVICE");
+            		break;
+            	case 1:
+            		textGPSProvider.setText("TEMPORARILY UNAVAILABLE");
+            		break;
+            	case 2:
+            		textGPSProvider.setText("AVAILABLE");
+            		break;
+            }
+            switch(mService.networkStatus){
+	        	case 0:
+	        		textNetworkProvider.setText("OUT_OF_SERVICE");
+	        		break;
+	        	case 1:
+	        		textNetworkProvider.setText("TEMPORARILY UNAVAILABLE");
+	        		break;
+	        	case 2:
+	        		textNetworkProvider.setText("AVAILABLE");
+	        		break;
+            }
+            text3G.setText(String.valueOf(mService.mobileState));
+            textWifi.setText(String.valueOf(mService.wifiState));
+            textIsLowMemory.setText(String.valueOf(mService.isLowMemory));
+            
+            if(mService.mLocation != null){
+	            textLocAcc.setText(String.valueOf(mService.mLocation.getAccuracy()) + " m");
+	            textLat.setText(String.valueOf(mService.mLocation.getLatitude()));
+	            textLon.setText(String.valueOf(mService.mLocation.getLongitude()));
+	            textProvider.setText(String.valueOf(mService.mLocation.getProvider()));
+	            textSpeed.setText(String.valueOf(mService.mLocation.getSpeed()) + " m/s");	            
+            }
+            
+    		/*
 	    	String toWrite = "Current Process: " + String.valueOf(mService.processCurrentPackage) + "\n"
 	    					+ "batLevel: " + String.valueOf(mService.batLevel) + "\n"
 	    					+ "batStatus: " + String.valueOf(mService.batStatus) + "\n"
@@ -218,9 +374,101 @@ public class MainActivity extends Activity {
 	    		toWrite += "location: no location available!" + "\n";
 	    	}
 	
-	    	textInfo.setText(toWrite);
+	    	textInfo.setText(toWrite);*/    		    		
     	}
-    }  
+    }
+	
+	private void updateNetworkTraffic(){
+		if(mBound){			
+			
+	        QueryBuilder<NetworkLog> qb = networkLogDao.queryBuilder();
+	    
+	        qb.where(qb.and(Properties.MobileState.eq("CONNECTED"), Properties.Time.ge(getTodayStartDate())));	        
+	        long cumRxBytes = 0;
+	        long cumTxBytes = 0;
+	        List<NetworkLog> logs = qb.list();
+	        
+	        for(NetworkLog log : logs){        	
+	        	cumRxBytes += log.getReceivedByte();
+	        	cumTxBytes += log.getTransmittedByte();
+	        }	        	        
+	        
+	        this.text3GTodayRx.setText(toBytes(cumRxBytes));
+	        this.text3GTodayTx.setText(toBytes(cumTxBytes));
+	        this.text3GTodayTotal.setText(toBytes(cumTxBytes+cumRxBytes));
+	        
+	        //WiFi network traffic
+	        qb = networkLogDao.queryBuilder();
+	        qb.where(qb.and(Properties.WifiState.eq("CONNECTED"), Properties.Time.ge(getTodayStartDate())));
+	        logs = qb.list();
+	        for(NetworkLog log : logs){	
+	        	cumRxBytes += log.getReceivedByte();
+	        	cumTxBytes += log.getTransmittedByte();
+	        }	        	        
+	        
+	        textWifiTodayRx.setText(toBytes(cumRxBytes));
+	        textWifiTodayTx.setText(toBytes(cumTxBytes));
+	        textWifiTodayTotal.setText(toBytes(cumTxBytes+cumRxBytes));
+	        
+	        qb = networkLogDao.queryBuilder();
+	        qb.where(qb.and(Properties.MobileState.eq("CONNECTED"), Properties.Time.ge(getWeekStartDate())));	        
+	        cumRxBytes = 0;
+	        cumTxBytes = 0;
+	        logs = qb.list();
+	        Log.d("updateNetworkTraffic", "log list size:" + logs.size());
+	        for(NetworkLog log : logs){        	
+	        	cumRxBytes += log.getReceivedByte();
+	        	cumTxBytes += log.getTransmittedByte();
+	        }	        	        
+	        
+	        this.text3GWeekRx.setText(toBytes(cumRxBytes));
+	        this.text3GWeekTx.setText(toBytes(cumTxBytes));
+	        this.text3GWeekTotal.setText(toBytes(cumTxBytes+cumRxBytes));
+	        
+	        //WiFi network traffic
+	        qb = networkLogDao.queryBuilder();
+	        qb.where(qb.and(Properties.WifiState.eq("CONNECTED"), Properties.Time.ge(getWeekStartDate())));
+	        logs = qb.list();
+	        for(NetworkLog log : logs){
+	        	cumRxBytes += log.getReceivedByte();
+	        	cumTxBytes += log.getTransmittedByte();
+	        }	        	        
+	        
+	        textWifiWeekRx.setText(toBytes(cumRxBytes));
+	        textWifiWeekTx.setText(toBytes(cumTxBytes));
+	        textWifiWeekTotal.setText(toBytes(cumTxBytes+cumRxBytes));
+	        
+	        
+	        qb = networkLogDao.queryBuilder();
+	        qb.where(qb.and(Properties.MobileState.eq("CONNECTED"), Properties.Time.ge(getMonthStartDate())));	        
+	        cumRxBytes = 0;
+	        cumTxBytes = 0;
+	        logs = qb.list();
+	        
+	        for(NetworkLog log : logs){	        	
+	        	cumRxBytes += log.getReceivedByte();
+	        	cumTxBytes += log.getTransmittedByte();
+	        }	        	        
+	        
+	        this.text3GMonthRx.setText(toBytes(cumRxBytes));
+	        this.text3GMonthTx.setText(toBytes(cumTxBytes));
+	        this.text3GMonthTotal.setText(toBytes(cumTxBytes+cumRxBytes));
+	        
+	        //WiFi network traffic
+	        qb = networkLogDao.queryBuilder();
+	        qb.where(qb.and(Properties.WifiState.eq("CONNECTED"), Properties.Time.ge(getMonthStartDate())));
+	        logs = qb.list();
+	        for(NetworkLog log : logs){	
+	        	cumRxBytes += log.getReceivedByte();
+	        	cumTxBytes += log.getTransmittedByte();
+	        }	        	        
+	        
+	        textWifiMonthRx.setText(toBytes(cumRxBytes));
+	        textWifiMonthTx.setText(toBytes(cumTxBytes));
+	        textWifiMonthTotal.setText(toBytes(cumTxBytes+cumRxBytes));
+	        
+		}
+	}
     
     private void showEnableLocationDialog(){
 		AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -242,6 +490,7 @@ public class MainActivity extends Activity {
 		AlertDialog alert = builder.create();
 		alert.show();
 	}
+    
     
     private OnClickListener quitListener = new OnClickListener(){
 		@Override
@@ -265,9 +514,12 @@ public class MainActivity extends Activity {
     private OnClickListener refreshListener = new OnClickListener(){
 		@Override
 		public void onClick(View view) {
-			displayInfo();
+			updateStatus();
+			updateNetworkTraffic();
 		}
     };
+    
+    /*
     private OnClickListener filterListener = new OnClickListener(){
 		@Override
 		public void onClick(View v) {
@@ -280,7 +532,7 @@ public class MainActivity extends Activity {
 				
 				
 				double cumUseTime = 0;
-				/*
+				
 		        QueryBuilder<MobileLog> qb = mobileLogDao.queryBuilder(); 
 		        if (startHourOfDay < endHourOfDay){
 		        	qb.where(Properties.ProcessCurrentPackage.eq("edu.ntu.arbor.sbchao.androidlogger"), qb.and(Properties.HourOfDay.ge(startHourOfDay), Properties.HourOfDay.le(endHourOfDay)));
@@ -291,21 +543,23 @@ public class MainActivity extends Activity {
 		        List<MobileLog> loggers = qb.list();
 		        for(MobileLog mobileLog : loggers){
 		        	cumUseTime += mobileLog.getRecordFreq();
-		        }*/
+		        }
 		        
 		        textAppUsage.setText("�A�w�ϥγo��app: " + String.valueOf(cumUseTime/60000) + "����");
 			}
 		}
-	};
+	};*/
 	
+	/*
 	private OnClickListener cancelFilterListener = new OnClickListener(){
 		@Override
 		public void onClick(View v) {
-			showAppUsage();
+			//updateAppUsage();
 		}		
-	}; 
+	};*/ 
 	
-	private void showAppUsage(){
+	/*
+	private void updateAppUsage(){
         double cumUseTime = 0;
         QueryBuilder<MobileLog> qb = mobileLogDao.queryBuilder(); 
         List<MobileLog> loggers = qb.where(Properties.ProcessCurrentPackage.eq("edu.ntu.arbor.sbchao.androidlogger")).list();
@@ -313,7 +567,67 @@ public class MainActivity extends Activity {
         	cumUseTime += mobileLog.getRecordFreq();
         }
         textAppUsage.setText("�A�w�ϥγo��app: " + String.valueOf(cumUseTime/60000) + "����");
+	}*/
+
+	
+	private static String toBytes(long bytes){
+		if(bytes < 1024){return String.valueOf(bytes) + "Bytes";}
+		else if (bytes >= 1024 && bytes < 1024*1024){
+			return String.format("%.1f", bytes/1024.0) + "KB";
+		}
+		else if (bytes >= 1024*1024 && bytes < 1024*1024*1024){
+			return String.format("%.1f", bytes/(1024.0*1024)) + "MB";
+		}
+		else if (bytes >= 1024*1024*1024 && bytes < 1024*1024*1024*1024){
+			return String.format("%.1f", bytes/(1024.0*1024*1024)) + "GB";
+		}
+		else if (bytes >= 1024*1024*1024*1024){
+			return String.format("%.1f", bytes/(1024.0*1024*1024*1024)) + "TB";
+		}
+		else return "";
 	}
 	
+	private Date getWeekStartDate(){
+		Calendar c = Calendar.getInstance();
+        c.clear();
+        c.setTime(new Date());
+        c.clear(Calendar.HOUR);
+        c.clear(Calendar.HOUR_OF_DAY);
+        c.clear(Calendar.MINUTE);
+        c.clear(Calendar.SECOND);
+        c.clear(Calendar.MILLISECOND);
+        c.set(Calendar.DAY_OF_WEEK, c.getFirstDayOfWeek());
+        //Log.d("getWeekDate - Month", String.valueOf(c.getTime().getMonth()));
+        //Log.d("getWeekDate - Date", String.valueOf(c.getTime().getDate()));	   
+        //Log.d("getWeekDate - after?", String.valueOf(c.getTime().before(new Date())));
+        return c.getTime();
+	}
+        
+	private Date getTodayStartDate(){    
+		Calendar c = Calendar.getInstance();
+        c.clear();
+        c.setTime(new Date());
+        c.clear(Calendar.HOUR);
+        c.clear(Calendar.HOUR_OF_DAY);
+        c.clear(Calendar.MINUTE);
+        c.clear(Calendar.SECOND);
+        c.clear(Calendar.MILLISECOND);
+        Log.d("getTodayDate", String.valueOf(c.getTime().getDate()));
+        return c.getTime();
+	}
+	 
+	private Date getMonthStartDate(){
+		Calendar c = Calendar.getInstance();
+		c.clear();
+	    c.setTime(new Date());
+	    c.set(Calendar.DAY_OF_MONTH, 1);
+	    c.clear(Calendar.HOUR);
+	    c.clear(Calendar.HOUR_OF_DAY);
+	    c.clear(Calendar.MINUTE);
+	    c.clear(Calendar.SECOND);
+	    c.clear(Calendar.MILLISECOND);
+	    Log.d("getMonthDate", String.valueOf(c.getTime().getDate()));
+	    return c.getTime();
+	}
 	
 }

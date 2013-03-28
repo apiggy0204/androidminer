@@ -1,6 +1,8 @@
 package edu.ntu.arbor.sbchao.androidlogger;
 
+import java.io.File;
 import java.io.IOException;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 
@@ -11,6 +13,10 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
+import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -25,7 +31,7 @@ import android.os.IBinder;
 import android.os.Looper;
 import android.os.Message;
 import android.os.Process;
-import android.telephony.PhoneStateListener;
+import android.preference.PreferenceManager;
 import android.telephony.TelephonyManager;
 import android.text.format.Time;
 import android.util.Log;
@@ -33,6 +39,13 @@ import edu.ntu.arbor.sbchao.androidlogger.logmanager.DataManager;
 import edu.ntu.arbor.sbchao.androidlogger.logmanager.LogInfo;
 import edu.ntu.arbor.sbchao.androidlogger.logmanager.LogManager;
 import edu.ntu.arbor.sbchao.androidlogger.logmanager.UploadingService;
+import edu.ntu.arbor.sbchao.androidlogger.scheme.DaoMaster;
+import edu.ntu.arbor.sbchao.androidlogger.scheme.DaoMaster.DevOpenHelper;
+import edu.ntu.arbor.sbchao.androidlogger.scheme.DaoSession;
+import edu.ntu.arbor.sbchao.androidlogger.scheme.MobileLog;
+import edu.ntu.arbor.sbchao.androidlogger.scheme.MobileLogDao;
+import edu.ntu.arbor.sbchao.androidlogger.scheme.NetworkLog;
+import edu.ntu.arbor.sbchao.androidlogger.scheme.NetworkLogDao;
 
 public class LoggingService extends Service {
 
@@ -40,7 +53,7 @@ public class LoggingService extends Service {
     private ServiceHandler mServiceHandler;
     private final IBinder mBinder = new LocalBinder();        
     static boolean isServiceRunning = false;
-    
+
     boolean isUsing = true;
     static final int HIGH_RECORD_FREQ = 10000;      //10 seconds
     static final int LOW_RECORD_FREQ  = 120000;    //2 minutes
@@ -103,14 +116,17 @@ public class LoggingService extends Service {
 	TrafficSnapshot prevTraf = null;
 	TrafficSnapshot latestTraf = null;	
 	
-	/*
+	
     private SQLiteDatabase db;
     private DaoMaster daoMaster;
     private DaoSession daoSession;
     private MobileLogDao mobileLogDao;
+    private NetworkLogDao networkLogDao;
     private Cursor cursor;
-	*/
-	
+    
+    //Settings
+	private boolean is3GUploadEnabled;
+	private boolean isLoggingAllowed;
 	
     @Override
 	public void onCreate() {
@@ -120,13 +136,19 @@ public class LoggingService extends Service {
 		// background priority so CPU-intensive work will not disrupt our UI.    	
 		HandlerThread handlerThread = new HandlerThread("ServiceStartArguments",
 				Process.THREAD_PRIORITY_BACKGROUND);
-		handlerThread.start();		
+		handlerThread.start();
 		// Get the HandlerThread's Looper and use it for our Handler 
 		mServiceLooper = handlerThread.getLooper();
 		mServiceHandler = new ServiceHandler(mServiceLooper);
 		Log.i("onCreate", "service is creating...");
 		
-		//Register receivers so that we can monitor changes of sensor
+		//Load settings
+		SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(this);
+	    is3GUploadEnabled = settings.getBoolean(SettingsActivity.PREFS_UPLOAD, false);
+	    isLoggingAllowed  = settings.getBoolean(SettingsActivity.PREFS_LOGGING, false);
+	    Log.i("Upload via 3G??", String.valueOf(is3GUploadEnabled));
+		
+	    //Register receivers so that we can monitor changes of sensor
 		if(!isServiceRunning){
 			registerServices();
 			deviceId = mTelMgr.getDeviceId();
@@ -145,28 +167,24 @@ public class LoggingService extends Service {
 		mLogMgr.checkExternalStorage("network");
 		mLogMgr.createNewLog("network");
 		
-		//mDataMgr = new DataManager();
-		
-		
-		/*
+		//Access Local Database
 		DevOpenHelper helper = new DaoMaster.DevOpenHelper(this, "MobileLog", null);
         db = helper.getWritableDatabase();
         daoMaster = new DaoMaster(db);
         daoSession = daoMaster.newSession();
         mobileLogDao = daoSession.getMobileLogDao();
-        */
-		
+        networkLogDao = daoSession.getNetworkLogDao();
+
 	}
 
 	@Override
-	public int onStartCommand(Intent intent, int flags, int startId) {		
-		
+	public int onStartCommand(Intent intent, int flags, int startId) {
 		// For each start request, send a message to start a job and deliver the
 		// start ID so we know which request we're stopping when we finish the job
 		Log.i("onStartCommand", "service starting");
 		Message msg = mServiceHandler.obtainMessage();
 		msg.arg1 = startId;
-		mServiceHandler.sendMessage(msg);
+		mServiceHandler.sendMessage(msg);				
 		
 		// If we get killed, after returning from here, restart
 	    return START_STICKY;
@@ -179,8 +197,7 @@ public class LoggingService extends Service {
             super(looper);
         }
 		@Override
-		public void handleMessage(Message msg) {			
-			
+		public void handleMessage(Message msg) {						
 			if(!isServiceRunning){
 				Log.i("handleMessage", "The logging is not running...");
 				isServiceRunning = true;
@@ -221,6 +238,8 @@ public class LoggingService extends Service {
 	    Log.i("onDestroy", "service done");
 	}
   
+	
+	
 	//Write sensor data into log files
 	//When isServiceRunning == true, continue to log indefinitely with postDelayed() method.
 	//Note that isServiceRunning is set to be false in onDestroy(), which ends the logging.
@@ -228,6 +247,10 @@ public class LoggingService extends Service {
 		@Override
 		public void run() {			
 			if(isServiceRunning){
+				//Log after few seconds			
+				boolean addedToTheQueue = mServiceHandler.postDelayed(writingToLogTask, recordFreq);					
+				Log.v("writingToLogTask", "addedToTheQueue? " + String.valueOf(addedToTheQueue) );
+				
 				updateNetworkInfo();		
 				updateProcessInfo();
 				updateNetworkTrafficInfo();
@@ -235,29 +258,11 @@ public class LoggingService extends Service {
 				writeToLog();
 				writeToNetworkLog();
 				
-				mServiceHandler.postDelayed(writingToLogTask, recordFreq);
 			} else {				
 				Log.v("writingToLogTask", "Finished. No more loggings!"); 
 			}
 		}
 	};
-	
-	/*
-	private Runnable writingToLogOnceTask = new Runnable(){
-		@Override
-		public void run() {
-			if(isServiceRunning){
-				updateNetworkInfo();			
-				updateProcessInfo();	
-				updateNetworkTrafficInfo();
-				uploadLog();
-				writeToLog(); //Write to the log
-				writeToNetworkLog();
-			} else {				
-				Log.v("writingToLogOnceTask", "FINISHED!"); 
-			}						
-		}
-	};*/
 	
 	private void registerServices(){
 		registerReceiver(mBatteryChangedReceiver,new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
@@ -274,7 +279,9 @@ public class LoggingService extends Service {
 		
 		mConnMgr = (ConnectivityManager)this.getSystemService(Context.CONNECTIVITY_SERVICE);
 		
-		mActMgr = (ActivityManager) this.getSystemService(ACTIVITY_SERVICE);				
+		mActMgr = (ActivityManager) this.getSystemService(ACTIVITY_SERVICE);		
+		
+		PreferenceManager.getDefaultSharedPreferences(this).registerOnSharedPreferenceChangeListener(onSharedPreferenceChangedListener);
 	}
 	
 	private void unregisterServices(){
@@ -284,7 +291,22 @@ public class LoggingService extends Service {
 		
 		mLocMgr.removeUpdates(mLocationListener);
 		//mTelMgr.listen(mPhoneStateListener, PhoneStateListener.LISTEN_NONE);		
+		PreferenceManager.getDefaultSharedPreferences(this).unregisterOnSharedPreferenceChangeListener(onSharedPreferenceChangedListener);
 	}
+	
+	private OnSharedPreferenceChangeListener onSharedPreferenceChangedListener = new OnSharedPreferenceChangeListener(){
+
+		@Override
+		public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
+			if(key.equals(SettingsActivity.PREFS_UPLOAD)){
+				is3GUploadEnabled = sharedPreferences.getBoolean(key, false);
+				Log.i("onSharedPreferenceChanged", "3G in service has been set to " + is3GUploadEnabled);
+			}
+			if(key.equals(SettingsActivity.PREFS_LOGGING)){
+				isLoggingAllowed = sharedPreferences.getBoolean(key, false);
+				Log.i("onSharedPreferenceChanged", "Allow logging in service has been set to " + isLoggingAllowed);
+			}
+		}};
 	
 	private BroadcastReceiver mBatteryChangedReceiver = new BroadcastReceiver(){ 
 		public void onReceive(Context context,Intent intent){
@@ -338,9 +360,9 @@ public class LoggingService extends Service {
 		
 		public void onLocationChanged(Location location) {
 	    	if(location != null){
-	    		if (isBetterLocation(location, mLocation)){
+	    		//if (isBetterLocation(location, mLocation)){
 	    			mLocation = location;
-	    		}
+	    		//}
 	    	} else {
 	    		mLocation = null;
 	    	}
@@ -349,8 +371,14 @@ public class LoggingService extends Service {
 	    public void onStatusChanged(String provider, int status, Bundle extras) {
 	    	Log.v("onStatusChanged", provider);
 	    	Log.v("onStatusChanged", String.valueOf(status));	    	
-	    	if(provider.equals("gps")) gpsStatus = status;
-	    	if(provider.equals("network")) networkStatus = status;	 	    	
+	    	if(provider.equals("gps")){	    		
+	    		gpsStatus = status;
+	    		Log.v("onStatusChanged", String.valueOf(status));
+	    	}
+	    	if(provider.equals("network")){
+	    		networkStatus = status;	 	    	
+	    		Log.v("onStatusChanged", String.valueOf(status));
+	    	}
 	    }
 
 	    public void onProviderEnabled(String provider) {
@@ -532,7 +560,7 @@ public class LoggingService extends Service {
 	//Upload whenever there is network connection
 	private void uploadLog(){
 		updateNetworkInfo();
-		if (isMobileConnected || isWifiConnected ) {
+		if (isWifiConnected || (is3GUploadEnabled && isMobileConnected) ) {
 			Intent uploadIntent = new Intent(this, UploadingService.class);
 			startService(uploadIntent);
 		}
@@ -593,6 +621,9 @@ public class LoggingService extends Service {
 		}		
 		Log.v("writeToLogFile", "The file is " + getFilesDir() + "/" + logInfo.getLogFilename());
 		Log.v("writeToLogFile", "Write Successfully!");
+		
+		//Write to the local database
+		writeToDatabase();
 	}
 	
 	
@@ -648,6 +679,14 @@ public class LoggingService extends Service {
 					}		
 					Log.v("writeToLogFile", "The file is " + getFilesDir() + "/" + logInfo.getLogFilename());
 					Log.v("writeToLogFile", "Write Successfully!");
+										
+					//Insert into the local database
+					Log.v("Database", "Starting to insert new NetworkLog");	 
+					NetworkLog log = new NetworkLog(null, deviceId, new Date(), new Date().getDay(), new Date().getHours(), recordFreq, mobileState.toString(), wifiState.toString(), latest.tx - prev.tx, latest.rx - prev.rx, appName, isUsing);        
+			        networkLogDao.insert(log);			        
+			        Log.v("Database", "Inserted new networkLog, ID: " + log.getId());
+			        Log.v("Database", "Size: " + String.valueOf((double)new File(db.getPath()).length()/1024.0) + "kB");
+					
 				}
 			}
 		}
@@ -655,28 +694,62 @@ public class LoggingService extends Service {
 		
 	}
 	
-	/*
 	private void writeToDatabase(){
 		
-		Log.d("Database", "Starting to insert new MobileLog");
+		Log.v("Database", "Starting to insert new MobileLog");
 		        
         MobileLog mobileLog = null;
         if(mLocation != null){
 	        mobileLog = new MobileLog(null, deviceId, new Date(), new Date().getDay(), new Date().getHours(), recordFreq, batStatus, batPct, gpsStatus, networkStatus, 
-	        		mobileState.toString(), wifiState.toString(), processCurrentPackage, isLowMemory, (double) mLocation.getAccuracy(), mLocation.getLatitude(), mLocation.getLongitude(), mLocation.getProvider(), 
+	        		mobileState.toString(), wifiState.toString(), processCurrentPackage, isLowMemory, isUsing, (double) mLocation.getAccuracy(), mLocation.getLatitude(), mLocation.getLongitude(), mLocation.getProvider(), 
 	        		(double) mLocation.getSpeed());
         }
         else{
 	        mobileLog = new MobileLog(null, deviceId, new Date(), new Date().getDay(), new Date().getHours(), recordFreq, batStatus, batPct, gpsStatus, networkStatus, 
-	        		mobileState.toString(), wifiState.toString(), processCurrentPackage, isLowMemory, null, null, null, null, null); 
+	        		mobileState.toString(), wifiState.toString(), processCurrentPackage, isLowMemory, isUsing, null, null, null, null, null); 
         }
  
         mobileLogDao.insert(mobileLog);
-        Log.d("Database", "Inserted new MobileLog, ID: " + mobileLog.getId());
-
-        //cursor.requery();
+        Log.v("Database", "Inserted new MobileLog, ID: " + mobileLog.getId());
+        Log.v("Database", "Size: " + String.valueOf((double)new File(db.getPath()).length()/1024.0) + "kB");
         
-	};*/
+	};
+	
+	/*
+	private void writeToNetworkDatabase(){
+        
+        HashSet<Integer> intersection = new HashSet<Integer>(latestTraf.apps.keySet());
+		
+		if (prevTraf != null) {
+			intersection.retainAll(prevTraf.apps.keySet());
+		}
+		
+		for (Integer uid : intersection) {
+			
+			Log.v("Database", "Starting to insert new MobileLog");	        
+	        NetworkLog log = null;
+			
+			TrafficRecord latest = latestTraf.apps.get(uid);
+			TrafficRecord prev = ( prevTraf == null ? null : prevTraf.apps.get(uid));
+			
+			String appName = latestTraf.appNames.get(uid);
+			
+			if(prev != null && latest != null){				
+				if(latest.rx - prev.rx > 0 || latest.tx - prev.tx > 0){
+					
+					Log.v("TrafficMonitor", "appName: " + appName + ", rx: " + String.valueOf(latest.rx - prev.rx));
+					Log.v("TrafficMonitor", "appName: " + appName + ", tx: " + String.valueOf(latest.tx - prev.tx));
+					
+			        log = new NetworkLog(null, deviceId, new Date(), new Date().getDay(), new Date().getHours(), recordFreq, mobileState.toString(), wifiState.toString(), latest.tx - prev.tx, latest.rx - prev.rx, appName, isUsing);        
+			        networkLogDao.insert(log);
+			        
+			        Log.v("Database", "Inserted new networkLog, ID: " + log.getId());
+			        Log.v("Database", "Size: " + String.valueOf((double)db.getPageSize()/1024) + "kB");
+					
+				}
+			}
+		}
+	}*/
 	
 }
 	
