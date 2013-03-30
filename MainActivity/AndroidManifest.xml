@@ -35,8 +35,9 @@
             </intent-filter>
         </activity>
         
-		<activity android:name="edu.ntu.arbor.sbchao.androidlogger.SettingsActivity">
-		</activity>
+		<activity android:name="edu.ntu.arbor.sbchao.androidlogger.SettingsActivity"></activity>
+		<activity android:name="edu.ntu.arbor.sbchao.androidlogger.AppUsageActivity"></activity>
+		<activity android:name="org.achartengine.GraphicalActivity"></activity>
         
         <service android:name=".LoggingService" />
         <service android:name="edu.ntu.arbor.sbchao.androidlogger.logmanager.UploadingService" />

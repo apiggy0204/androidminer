@@ -12,6 +12,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.database.sqlite.SQLiteDatabase;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -37,6 +38,7 @@ public class MainActivity extends Activity {
 	
 	private static final int UPDATE_INFO = 0x0000;
 	private static final int ENABLE_LOCATION_PROVIDER = 0x0001;
+	private static final int UPDATE_NETWORK = 0x0002;
 	
 	private Button buttonQuit;
 	private Button buttonRefresh;
@@ -70,6 +72,8 @@ public class MainActivity extends Activity {
 	private TextView textWifiMonthTx;
 	private TextView textWifiMonthRx;
 	private TextView textWifiMonthTotal;
+	
+	
 	
 	private boolean mBound = false;	
 	private LoggingService mService = null;
@@ -109,10 +113,16 @@ public class MainActivity extends Activity {
 			switch(msg.what){
 				case UPDATE_INFO:
 					if(mBound){
-						updateStatus();
-						updateNetworkTraffic();
+						updateStatus();						
 					}
-					mHandler.postDelayed(updateInfoThread, UPDATE_FREQUENCY);
+					mHandler.postDelayed(updateInfoThread, 1000);
+					break;
+				case UPDATE_NETWORK:
+					if(mBound){						
+						//updateNetworkTraffic();
+						new UpdateNetworkTrafficTask().execute();
+					}
+					mHandler.postDelayed(updateNetworkThread, UPDATE_FREQUENCY);
 					break;
 				case ENABLE_LOCATION_PROVIDER:
 					if(mBound && (!mService.isGPSProviderEnabled && !mService.isMobileConnected)){
@@ -120,11 +130,12 @@ public class MainActivity extends Activity {
 					} else {
 						mHandler.postDelayed(enableLocationProviderThread, 1000);
 					}
-					break;
+					break;				
 				default:
 					assert(false);
 					break;
 			}
+			super.handleMessage(msg);
 	    }
     }
     
@@ -132,7 +143,7 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        
+         
         addUiListeners();
 
         //Start LoggingService
@@ -140,7 +151,7 @@ public class MainActivity extends Activity {
         startService(intent);
                         
         //Ask user to enable location providers
-        mHandler.postDelayed(enableLocationProviderThread, 1000);
+        //mHandler.postDelayed(enableLocationProviderThread, 1000);
         
         //Set up local databases
         DevOpenHelper helper = new DaoMaster.DevOpenHelper(this, "MobileLog", null);
@@ -157,7 +168,10 @@ public class MainActivity extends Activity {
         // Bind to LoggingService
         Intent intent = new Intent(MainActivity.this, LoggingService.class);
         bindService(intent, mConnection, Context.BIND_AUTO_CREATE);  
-        mHandler.postDelayed(updateInfoThread, 5000);
+        
+        //Update info on UI
+        mHandler.postDelayed(updateInfoThread, 0);
+        mHandler.postDelayed(updateNetworkThread, 0); 
     }
     
     @Override
@@ -194,15 +208,29 @@ public class MainActivity extends Activity {
     private Runnable updateInfoThread = new Runnable(){
 		@Override
 		public void run() {
-			try {
+			try {				
 				Message msg = new Message();
 				msg.what = UPDATE_INFO;
 				mHandler.sendMessage(msg);
-			} catch(Exception e) {
+			}  
+			catch(Exception e) {
 				e.printStackTrace();
 				Log.e("UpdateInfoThread", e.getMessage());
-			} finally {
-				//Nothing
+			}
+		}
+    };
+    
+    private Runnable updateNetworkThread = new Runnable(){
+		@Override
+		public void run() {
+			try {				
+				Message msg = new Message();
+				msg.what = UPDATE_NETWORK;
+				mHandler.sendMessage(msg);
+			}  
+			catch(Exception e) {
+				e.printStackTrace();
+				Log.e("UpdateInfoThread", e.getMessage());
 			}
 		}
     };
@@ -213,12 +241,11 @@ public class MainActivity extends Activity {
 			try {
 				Message msg = new Message();
 				msg.what = ENABLE_LOCATION_PROVIDER;
-				mHandler.sendMessage(msg);
-			} catch(Exception e) {
+				mHandler.sendMessage(msg);	
+			}
+			catch(Exception e) {
 				e.printStackTrace();
 				Log.e("UpdateInfoThread", e.getMessage());
-			} finally {
-				//Nothing
 			}
 		}
     };
@@ -238,6 +265,8 @@ public class MainActivity extends Activity {
 	private TextView textLon;
 	private TextView textProvider;
 	private TextView textSpeed;
+	private Button buttonDailyAppUsage;
+	private Button buttonHourlyAppUsage;
 
 
     private void addUiListeners(){
@@ -288,7 +317,12 @@ public class MainActivity extends Activity {
 
         textWifiMonthTx = (TextView) findViewById(R.id.text_wifi_month_tx);
         textWifiMonthRx = (TextView) findViewById(R.id.text_wifi_month_rx);
-        textWifiMonthTotal = (TextView) findViewById(R.id.text_wifi_month_total);  
+        textWifiMonthTotal = (TextView) findViewById(R.id.text_wifi_month_total); 
+        
+        buttonDailyAppUsage = (Button) findViewById(R.id.button_app_daily_usage);
+        buttonDailyAppUsage.setOnClickListener(dailyAppUsageListener);
+        buttonHourlyAppUsage = (Button) findViewById(R.id.button_app_hour_usage);
+        buttonHourlyAppUsage.setOnClickListener(hourlyAppUsageListener);
        
     }
     
@@ -378,95 +412,234 @@ public class MainActivity extends Activity {
     	}
     }
 	
+    private class UpdateNetworkTrafficTask extends AsyncTask<Void, Void, Void>{
+    	
+    	private long byte3GTodayTx;
+    	private long byte3GTodayRx;
+    	private long byteWifiTodayTx;
+    	private long byteWifiTodayRx;
+    	private long byte3GWeekTx;
+    	private long byte3GWeekRx;
+    	private long byte3GMonthTx;
+    	private long byte3GMonthRx;
+    	private long byteWifiWeekTx;
+    	private long byteWifiWeekRx;
+    	private long byteWifiMonthTx;
+    	private long byteWifiMonthRx;
+    	
+    	@Override
+    	protected void onPostExecute(Void result){
+	        text3GTodayRx.setText(toBytes(byte3GTodayRx));
+	        text3GTodayTx.setText(toBytes(byte3GTodayTx));
+	        text3GTodayTotal.setText(toBytes(byte3GTodayRx+byte3GTodayTx));
+	        textWifiTodayRx.setText(toBytes(byteWifiTodayRx));
+	        textWifiTodayTx.setText(toBytes(byteWifiTodayTx));
+	        textWifiTodayTotal.setText(toBytes(byteWifiTodayRx+byteWifiTodayTx));
+	        text3GWeekRx.setText(toBytes(byte3GWeekRx));
+	        text3GWeekTx.setText(toBytes(byte3GWeekTx));
+	        text3GWeekTotal.setText(toBytes(byte3GWeekRx+byte3GWeekTx));
+	        textWifiWeekRx.setText(toBytes(byteWifiWeekRx));
+	        textWifiWeekTx.setText(toBytes(byteWifiWeekTx));
+	        textWifiWeekTotal.setText(toBytes(byteWifiWeekRx+byteWifiWeekTx));
+	        text3GMonthRx.setText(toBytes(byte3GMonthRx));
+	        text3GMonthTx.setText(toBytes(byte3GMonthTx));
+	        text3GMonthTotal.setText(toBytes(byte3GMonthRx+byte3GMonthTx));
+	        textWifiMonthRx.setText(toBytes(byteWifiMonthRx));
+	        textWifiMonthTx.setText(toBytes(byteWifiMonthTx));
+	        textWifiMonthTotal.setText(toBytes(byteWifiMonthRx+byteWifiMonthTx));
+    	}
+    	
+		@Override
+		protected Void doInBackground(Void... arg0) {
+			if(mBound){		
+				
+				Log.i("doInBackgound", "start!");
+				//try {
+			        QueryBuilder<NetworkLog> qb = networkLogDao.queryBuilder();
+			    
+			        qb.where(qb.and(Properties.MobileState.eq("CONNECTED"), Properties.Time.ge(getTodayStartDate())));	        
+			        long cumRxBytes = 0;
+			        long cumTxBytes = 0;
+			        List<NetworkLog> logs = qb.list();
+			        
+			        for(NetworkLog log : logs){        	
+			        	byte3GTodayRx += log.getReceivedByte();
+			        	byte3GTodayTx += log.getTransmittedByte();
+			        }	        	        
+
+					//Thread.sleep(100);
+					
+			        //WiFi network traffic
+			        qb = networkLogDao.queryBuilder();
+			        qb.where(qb.and(Properties.WifiState.eq("CONNECTED"), Properties.Time.ge(getTodayStartDate())));
+			        logs = qb.list();
+			        for(NetworkLog log : logs){	
+			        	byteWifiTodayRx += log.getReceivedByte();
+			        	byteWifiTodayTx += log.getTransmittedByte();
+			        }	        	        
+
+			        //Thread.sleep(100);
+			        
+			        qb = networkLogDao.queryBuilder();
+			        qb.where(qb.and(Properties.MobileState.eq("CONNECTED"), Properties.Time.ge(getWeekStartDate())));	        
+			        cumRxBytes = 0;
+			        cumTxBytes = 0;
+			        logs = qb.list();
+			        Log.d("updateNetworkTraffic", "log list size:" + logs.size());
+			        for(NetworkLog log : logs){        	
+			        	byte3GWeekRx += log.getReceivedByte();
+			        	byte3GWeekTx += log.getTransmittedByte();
+			        }	        	        
+
+			        //Thread.sleep(100);
+			        
+			        //WiFi network traffic
+			        qb = networkLogDao.queryBuilder();
+			        qb.where(qb.and(Properties.WifiState.eq("CONNECTED"), Properties.Time.ge(getWeekStartDate())));
+			        logs = qb.list();
+			        for(NetworkLog log : logs){
+			        	byteWifiWeekRx += log.getReceivedByte();
+			        	byteWifiWeekTx += log.getTransmittedByte();
+			        }	        	        
+
+			        //Thread.sleep(100);
+			        
+			        qb = networkLogDao.queryBuilder();
+			        qb.where(qb.and(Properties.MobileState.eq("CONNECTED"), Properties.Time.ge(getMonthStartDate())));	        
+			        cumRxBytes = 0;
+			        cumTxBytes = 0;
+			        logs = qb.list();
+			        
+			        for(NetworkLog log : logs){	        	
+			        	byte3GMonthRx += log.getReceivedByte();
+			        	byte3GMonthTx += log.getTransmittedByte();
+			        }	        	        
+
+			        //WiFi network traffic
+			        qb = networkLogDao.queryBuilder();
+			        qb.where(qb.and(Properties.WifiState.eq("CONNECTED"), Properties.Time.ge(getMonthStartDate())));
+			        logs = qb.list();
+			        for(NetworkLog log : logs){	
+			        	byteWifiMonthRx += log.getReceivedByte();
+			        	byteWifiMonthTx += log.getTransmittedByte();
+			        }	        	        
+
+			        //Thread.sleep(100);
+			        
+					//}
+			        //catch (InterruptedException e) {
+			        	//TODO
+					//}	 
+			        Log.i("doInBackgound", "finish!!");
+			}
+			return null;
+		}
+	};
+    
 	private void updateNetworkTraffic(){
 		if(mBound){			
-			
-	        QueryBuilder<NetworkLog> qb = networkLogDao.queryBuilder();
-	    
-	        qb.where(qb.and(Properties.MobileState.eq("CONNECTED"), Properties.Time.ge(getTodayStartDate())));	        
-	        long cumRxBytes = 0;
-	        long cumTxBytes = 0;
-	        List<NetworkLog> logs = qb.list();
+			//try {
+		        QueryBuilder<NetworkLog> qb = networkLogDao.queryBuilder();
+		    
+		        qb.where(qb.and(Properties.MobileState.eq("CONNECTED"), Properties.Time.ge(getTodayStartDate())));	        
+		        long cumRxBytes = 0;
+		        long cumTxBytes = 0;
+		        List<NetworkLog> logs = qb.list();
+		        
+		        for(NetworkLog log : logs){        	
+		        	cumRxBytes += log.getReceivedByte();
+		        	cumTxBytes += log.getTransmittedByte();
+		        }	        	        
+		        
+		        text3GTodayRx.setText(toBytes(cumRxBytes));
+		        text3GTodayTx.setText(toBytes(cumTxBytes));
+		        text3GTodayTotal.setText(toBytes(cumTxBytes+cumRxBytes));
+		        
+				//Thread.sleep(100);
+				
+		        //WiFi network traffic
+		        qb = networkLogDao.queryBuilder();
+		        qb.where(qb.and(Properties.WifiState.eq("CONNECTED"), Properties.Time.ge(getTodayStartDate())));
+		        logs = qb.list();
+		        for(NetworkLog log : logs){	
+		        	cumRxBytes += log.getReceivedByte();
+		        	cumTxBytes += log.getTransmittedByte();
+		        }	        	        
+		        
+		        textWifiTodayRx.setText(toBytes(cumRxBytes));
+		        textWifiTodayTx.setText(toBytes(cumTxBytes));
+		        textWifiTodayTotal.setText(toBytes(cumTxBytes+cumRxBytes));
+		        
+		        //Thread.sleep(100);
+		        
+		        qb = networkLogDao.queryBuilder();
+		        qb.where(qb.and(Properties.MobileState.eq("CONNECTED"), Properties.Time.ge(getWeekStartDate())));	        
+		        cumRxBytes = 0;
+		        cumTxBytes = 0;
+		        logs = qb.list();
+		        Log.d("updateNetworkTraffic", "log list size:" + logs.size());
+		        for(NetworkLog log : logs){        	
+		        	cumRxBytes += log.getReceivedByte();
+		        	cumTxBytes += log.getTransmittedByte();
+		        }	        	        
+		        
+		        text3GWeekRx.setText(toBytes(cumRxBytes));
+		        text3GWeekTx.setText(toBytes(cumTxBytes));
+		        text3GWeekTotal.setText(toBytes(cumTxBytes+cumRxBytes));
+		        
+		        //Thread.sleep(100);
+		        
+		        //WiFi network traffic
+		        qb = networkLogDao.queryBuilder();
+		        qb.where(qb.and(Properties.WifiState.eq("CONNECTED"), Properties.Time.ge(getWeekStartDate())));
+		        logs = qb.list();
+		        for(NetworkLog log : logs){
+		        	cumRxBytes += log.getReceivedByte();
+		        	cumTxBytes += log.getTransmittedByte();
+		        }	        	        
+		        
+		        textWifiWeekRx.setText(toBytes(cumRxBytes));
+		        textWifiWeekTx.setText(toBytes(cumTxBytes));
+		        textWifiWeekTotal.setText(toBytes(cumTxBytes+cumRxBytes));
+		        
+		        //Thread.sleep(100);
+		        
+		        qb = networkLogDao.queryBuilder();
+		        qb.where(qb.and(Properties.MobileState.eq("CONNECTED"), Properties.Time.ge(getMonthStartDate())));	        
+		        cumRxBytes = 0;
+		        cumTxBytes = 0;
+		        logs = qb.list();
+		        
+		        for(NetworkLog log : logs){	        	
+		        	cumRxBytes += log.getReceivedByte();
+		        	cumTxBytes += log.getTransmittedByte();
+		        }	        	        
+		        
+		        //Thread.sleep(100);
+		        
+		        text3GMonthRx.setText(toBytes(cumRxBytes));
+		        text3GMonthTx.setText(toBytes(cumTxBytes));
+		        text3GMonthTotal.setText(toBytes(cumTxBytes+cumRxBytes));
+		        
+		        //WiFi network traffic
+		        qb = networkLogDao.queryBuilder();
+		        qb.where(qb.and(Properties.WifiState.eq("CONNECTED"), Properties.Time.ge(getMonthStartDate())));
+		        logs = qb.list();
+		        for(NetworkLog log : logs){	
+		        	cumRxBytes += log.getReceivedByte();
+		        	cumTxBytes += log.getTransmittedByte();
+		        }	        	        
+		        
+		        textWifiMonthRx.setText(toBytes(cumRxBytes));
+		        textWifiMonthTx.setText(toBytes(cumTxBytes));
+		        textWifiMonthTotal.setText(toBytes(cumTxBytes+cumRxBytes));
+		        
+		        //Thread.sleep(100);
 	        
-	        for(NetworkLog log : logs){        	
-	        	cumRxBytes += log.getReceivedByte();
-	        	cumTxBytes += log.getTransmittedByte();
-	        }	        	        
-	        
-	        this.text3GTodayRx.setText(toBytes(cumRxBytes));
-	        this.text3GTodayTx.setText(toBytes(cumTxBytes));
-	        this.text3GTodayTotal.setText(toBytes(cumTxBytes+cumRxBytes));
-	        
-	        //WiFi network traffic
-	        qb = networkLogDao.queryBuilder();
-	        qb.where(qb.and(Properties.WifiState.eq("CONNECTED"), Properties.Time.ge(getTodayStartDate())));
-	        logs = qb.list();
-	        for(NetworkLog log : logs){	
-	        	cumRxBytes += log.getReceivedByte();
-	        	cumTxBytes += log.getTransmittedByte();
-	        }	        	        
-	        
-	        textWifiTodayRx.setText(toBytes(cumRxBytes));
-	        textWifiTodayTx.setText(toBytes(cumTxBytes));
-	        textWifiTodayTotal.setText(toBytes(cumTxBytes+cumRxBytes));
-	        
-	        qb = networkLogDao.queryBuilder();
-	        qb.where(qb.and(Properties.MobileState.eq("CONNECTED"), Properties.Time.ge(getWeekStartDate())));	        
-	        cumRxBytes = 0;
-	        cumTxBytes = 0;
-	        logs = qb.list();
-	        Log.d("updateNetworkTraffic", "log list size:" + logs.size());
-	        for(NetworkLog log : logs){        	
-	        	cumRxBytes += log.getReceivedByte();
-	        	cumTxBytes += log.getTransmittedByte();
-	        }	        	        
-	        
-	        this.text3GWeekRx.setText(toBytes(cumRxBytes));
-	        this.text3GWeekTx.setText(toBytes(cumTxBytes));
-	        this.text3GWeekTotal.setText(toBytes(cumTxBytes+cumRxBytes));
-	        
-	        //WiFi network traffic
-	        qb = networkLogDao.queryBuilder();
-	        qb.where(qb.and(Properties.WifiState.eq("CONNECTED"), Properties.Time.ge(getWeekStartDate())));
-	        logs = qb.list();
-	        for(NetworkLog log : logs){
-	        	cumRxBytes += log.getReceivedByte();
-	        	cumTxBytes += log.getTransmittedByte();
-	        }	        	        
-	        
-	        textWifiWeekRx.setText(toBytes(cumRxBytes));
-	        textWifiWeekTx.setText(toBytes(cumTxBytes));
-	        textWifiWeekTotal.setText(toBytes(cumTxBytes+cumRxBytes));
-	        
-	        
-	        qb = networkLogDao.queryBuilder();
-	        qb.where(qb.and(Properties.MobileState.eq("CONNECTED"), Properties.Time.ge(getMonthStartDate())));	        
-	        cumRxBytes = 0;
-	        cumTxBytes = 0;
-	        logs = qb.list();
-	        
-	        for(NetworkLog log : logs){	        	
-	        	cumRxBytes += log.getReceivedByte();
-	        	cumTxBytes += log.getTransmittedByte();
-	        }	        	        
-	        
-	        this.text3GMonthRx.setText(toBytes(cumRxBytes));
-	        this.text3GMonthTx.setText(toBytes(cumTxBytes));
-	        this.text3GMonthTotal.setText(toBytes(cumTxBytes+cumRxBytes));
-	        
-	        //WiFi network traffic
-	        qb = networkLogDao.queryBuilder();
-	        qb.where(qb.and(Properties.WifiState.eq("CONNECTED"), Properties.Time.ge(getMonthStartDate())));
-	        logs = qb.list();
-	        for(NetworkLog log : logs){	
-	        	cumRxBytes += log.getReceivedByte();
-	        	cumTxBytes += log.getTransmittedByte();
-	        }	        	        
-	        
-	        textWifiMonthRx.setText(toBytes(cumRxBytes));
-	        textWifiMonthTx.setText(toBytes(cumTxBytes));
-	        textWifiMonthTotal.setText(toBytes(cumTxBytes+cumRxBytes));
-	        
+			//}
+	        //catch (InterruptedException e) {
+	        	//TODO
+			//}	        
 		}
 	}
     
@@ -517,6 +690,29 @@ public class MainActivity extends Activity {
 			updateStatus();
 			updateNetworkTraffic();
 		}
+    };
+    private OnClickListener hourlyAppUsageListener = new OnClickListener(){
+		@Override
+		public void onClick(View v) {
+			Intent intent = new Intent();
+			intent.setClass(MainActivity.this, AppUsageActivity.class);
+			Bundle extras = new Bundle();
+			extras.putString(AppUsageActivity.PREFS_CHART_MODE, AppUsageActivity.MODE_HOURLY);
+			intent.putExtras(extras);
+			MainActivity.this.startActivity(intent);			
+		}
+	};
+		
+    private OnClickListener dailyAppUsageListener = new OnClickListener(){
+		@Override
+		public void onClick(View v) {
+			Intent intent = new Intent();
+			intent.setClass(MainActivity.this, AppUsageActivity.class);
+			Bundle extras = new Bundle();
+			extras.putString(AppUsageActivity.PREFS_CHART_MODE, AppUsageActivity.MODE_DAILY);
+			intent.putExtras(extras);
+			MainActivity.this.startActivity(intent);			
+		}    	
     };
     
     /*

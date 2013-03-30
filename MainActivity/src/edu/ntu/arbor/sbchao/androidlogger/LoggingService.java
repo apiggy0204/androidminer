@@ -184,7 +184,7 @@ public class LoggingService extends Service {
 		Log.i("onStartCommand", "service starting");
 		Message msg = mServiceHandler.obtainMessage();
 		msg.arg1 = startId;
-		mServiceHandler.sendMessage(msg);				
+		mServiceHandler.sendMessage(msg);
 		
 		// If we get killed, after returning from here, restart
 	    return START_STICKY;
