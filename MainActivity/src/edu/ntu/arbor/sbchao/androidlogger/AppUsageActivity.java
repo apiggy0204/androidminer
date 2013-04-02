@@ -1,5 +1,6 @@
 package edu.ntu.arbor.sbchao.androidlogger;
 
+import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -35,6 +36,7 @@ import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Color;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Environment;
 import android.preference.PreferenceManager;
 import android.telephony.TelephonyManager;
 import android.util.Log;
@@ -60,9 +62,12 @@ public class AppUsageActivity extends ListActivity {
 	//private static String APP_USAGE_PATH = "http://10.0.2.2/netdbmobileminer_test/getAppUsage.php";
 	
 	private String mMode;
+	
 	private ArrayList<Map<String, String>> mListItemMaps = new ArrayList<Map<String, String>>();  
 	private ArrayList<String> mPkgNameList = new ArrayList<String>();
-	private double maxMinute = 0;	
+	private double maxMinute = 0;
+	XYMultipleSeriesDataset dataset;
+	XYMultipleSeriesRenderer renderer;
 	
 	//Local database
 	private SQLiteDatabase db;
@@ -72,6 +77,7 @@ public class AppUsageActivity extends ListActivity {
 	private NetworkLogDao networkLogDao;
 	
 	private ProgressDialog mDialog;
+
 	
 	protected void onCreate(Bundle savedInstanceState) {		
         super.onCreate(savedInstanceState);        
@@ -96,8 +102,11 @@ public class AppUsageActivity extends ListActivity {
 	public void onResume(){
 		super.onResume();
         //Set up local databases
-        DevOpenHelper helper = new DaoMaster.DevOpenHelper(this, "MobileLog", null);
-        db = helper.getWritableDatabase();
+		File dbfile = new File(Environment.getExternalStorageDirectory().getPath(), "AndroidLogger/netdb.db");
+		db = SQLiteDatabase.openOrCreateDatabase(dbfile, null);		
+		MobileLogDao.createTable(db, true);
+        NetworkLogDao.createTable(db, true);
+        
         daoMaster = new DaoMaster(db);
         daoSession = daoMaster.newSession();
         mobileLogDao = daoSession.getMobileLogDao();
@@ -110,6 +119,40 @@ public class AppUsageActivity extends ListActivity {
 		db.close();		
 	}
 	
+	protected void onListItemClick(ListView l, View v, int position, long id) {  
+        super.onListItemClick(l, v, position, id);
+        
+        //TODO
+        new GetAppUsageTask().execute(mPkgNameList.get(position));
+        /*
+        XYMultipleSeriesDataset dataset = getBarDataset(mPkgNameList.get(position));
+        XYMultipleSeriesRenderer renderer = getBarRenderer();  
+        Intent intent = ChartFactory.getBarChartIntent(this, dataset, renderer, Type.STACKED);  
+        startActivity(intent);
+        */    
+    }  
+	
+	/*
+	@Override
+	public void onSaveInstanceState(Bundle savedInstanceState) {
+		super.onSaveInstanceState(savedInstanceState);
+		// Save UI state changes to the savedInstanceState.
+		// This bundle will be passed to onCreate if the process is
+		// killed and restarted.
+		Log.i("saving...", mMode);
+		savedInstanceState.putString("mode", mMode);
+	}
+	
+	@Override
+	public void onRestoreInstanceState(Bundle savedInstanceState) {
+		super.onRestoreInstanceState(savedInstanceState);
+		// Restore UI state from the savedInstanceState.
+		// This bundle has also been passed to onCreate.		
+		mMode = savedInstanceState.getString("mode");
+	}
+	*/
+	
+	//Loading the app list when this activity is first activated
 	private class LoadAppListTask extends AsyncTask<Void, Void, Void>{
 
 		@Override
@@ -149,44 +192,8 @@ public class AppUsageActivity extends ListActivity {
 		}
 	};
 	
-	/*
-	@Override
-	public void onSaveInstanceState(Bundle savedInstanceState) {
-		super.onSaveInstanceState(savedInstanceState);
-		// Save UI state changes to the savedInstanceState.
-		// This bundle will be passed to onCreate if the process is
-		// killed and restarted.
-		Log.i("saving...", mMode);
-		savedInstanceState.putString("mode", mMode);
-	}
-	
-	@Override
-	public void onRestoreInstanceState(Bundle savedInstanceState) {
-		super.onRestoreInstanceState(savedInstanceState);
-		// Restore UI state from the savedInstanceState.
-		// This bundle has also been passed to onCreate.		
-		mMode = savedInstanceState.getString("mode");
-	}
-	*/
-	
-	protected void onListItemClick(ListView l, View v, int position, long id) {  
-        super.onListItemClick(l, v, position, id);
-        
-        //TODO
-        new GetAppUsageTask().execute(mPkgNameList.get(position));
-        /*
-        XYMultipleSeriesDataset dataset = getBarDataset(mPkgNameList.get(position));
-        XYMultipleSeriesRenderer renderer = getBarRenderer();  
-        Intent intent = ChartFactory.getBarChartIntent(this, dataset, renderer, Type.STACKED);  
-        startActivity(intent);
-        */    
-    }  
-	
-	
-	private class GetAppUsageTask extends AsyncTask<String, Void, Void>{
 
-		XYMultipleSeriesDataset dataset;
-		XYMultipleSeriesRenderer renderer;
+	private class GetAppUsageTask extends AsyncTask<String, Void, Void>{
 		
 		@Override
 		protected void onPreExecute(){
@@ -226,14 +233,26 @@ public class AppUsageActivity extends ListActivity {
         CategorySeries series = new CategorySeries(packageName);
         
         int max = 0;        
-        if(mMode.equals(MODE_DAILY)) max = 7;
-        else if(mMode.equals(MODE_HOURLY)) max = 24;
-        
-        for (int i = 0; i < max; i++) {  
+        if(mMode.equals(MODE_DAILY)){        	
+        	for (int i = 0; i <= 6; i++) {  
+            	double minute = getAppUsage(packageName, i); //TODO
+            	if(minute > maxMinute) maxMinute = minute;
+            	series.add(minute);
+            } 
+        }
+        else if(mMode.equals(MODE_HOURLY)){         	
+            for (int i = 1; i < 24; i++) {  
+            	double minute = getAppUsage(packageName, i); //TODO
+            	if(minute > maxMinute) maxMinute = minute;
+            	series.add(minute);
+            } 
+        }
+        /*
+        for (int i = 0; i <= max; i++) {  
         	double minute = getAppUsage(packageName, i); //TODO
         	if(minute > maxMinute) maxMinute = minute;
         	series.add(minute);
-        } 
+        } */
         dataset.addSeries(series.toXYSeries());  
           
         return dataset;  
@@ -260,15 +279,15 @@ public class AppUsageActivity extends ListActivity {
         	renderer.setChartTitle("Daily App Usage");
         	renderer.setXTitle("Day");
         	renderer.setXAxisMin(-0.5);
-        	renderer.setXAxisMax(6.5);
+        	renderer.setXAxisMax(8.5);
         	
-        	renderer.addXTextLabel(0, "Sun");
-            renderer.addXTextLabel(1, "Mon");
-            renderer.addXTextLabel(2, "Tue");
-            renderer.addXTextLabel(3, "Wed");
-            renderer.addXTextLabel(4, "Thu");
-            renderer.addXTextLabel(5, "Fri");
-            renderer.addXTextLabel(6, "Sun");
+        	renderer.addXTextLabel(1, "Sun");
+            renderer.addXTextLabel(2, "Mon");
+            renderer.addXTextLabel(3, "Tue");
+            renderer.addXTextLabel(4, "Wed");
+            renderer.addXTextLabel(5, "Thu");
+            renderer.addXTextLabel(6, "Fri");
+            renderer.addXTextLabel(7, "Sat");
         }
         else if(mMode.equals(MODE_HOURLY)){
         		renderer.setChartTitle("Hourly App Usage");
@@ -276,7 +295,7 @@ public class AppUsageActivity extends ListActivity {
         		renderer.setXAxisMin(-0.5);  
                 renderer.setXAxisMax(23.5);  
                 
-                for(int i=0; i<24; i++){
+                for(int i=0; i<=24; i++){
                 	renderer.addXTextLabel(i, String.valueOf(i));
                 }
     	}
@@ -302,10 +321,10 @@ public class AppUsageActivity extends ListActivity {
     	double cumMinutes = 0;
     	QueryBuilder<MobileLog> qb = mobileLogDao.queryBuilder();
     	if(mMode.equals(MODE_DAILY)){
-    		qb.where(qb.and(Properties.ProcessCurrentPackage.eq(pkgName), Properties.DayOfWeek.eq(param)));
+    		qb.where(qb.and(Properties.ProcessCurrentPackage.eq(pkgName), Properties.DayOfWeek.eq(param), Properties.IsUsing.eq(true)));
     	}
     	else if(mMode.equals(MODE_HOURLY)){
-    		qb.where(qb.and(Properties.ProcessCurrentPackage.eq(pkgName), Properties.HourOfDay.eq(param)));
+    		qb.where(qb.and(Properties.ProcessCurrentPackage.eq(pkgName), Properties.HourOfDay.eq(param), Properties.IsUsing.eq(true)));
     	}
         	        
         

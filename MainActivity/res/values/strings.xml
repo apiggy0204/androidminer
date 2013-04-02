@@ -1,8 +1,12 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
 
-    <string name="app_name">Netdb Logger</string>
-    <string name="hello_world">Hello world!</string>
-    <string name="menu_settings">Settings</string>
-
-</resources>
+    <resources>
+        <string name="app_name">Netdb Logger</string>
+        <string name="menu_settings">設定</string>
+        <string name="status_app">APP1</string>
+        <string name="main_mobile_status">手機狀態</string>
+        <string name="main_network_traffic">網路流量</string>
+        <string name="main_daily_app_usage">每日APP用量</string>
+        <string name="main_hourly_app_usage">每小時APP用量</string>
+        <string name="main_settings">設定</string>
+        <string name="main_contact">聯絡作者</string>
+    </resources>

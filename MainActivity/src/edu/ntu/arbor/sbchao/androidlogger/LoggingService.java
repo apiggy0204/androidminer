@@ -14,6 +14,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.content.SharedPreferences.Editor;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
@@ -25,6 +26,7 @@ import android.net.NetworkInfo;
 import android.os.BatteryManager;
 import android.os.Binder;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
@@ -40,7 +42,6 @@ import edu.ntu.arbor.sbchao.androidlogger.logmanager.LogInfo;
 import edu.ntu.arbor.sbchao.androidlogger.logmanager.LogManager;
 import edu.ntu.arbor.sbchao.androidlogger.logmanager.UploadingService;
 import edu.ntu.arbor.sbchao.androidlogger.scheme.DaoMaster;
-import edu.ntu.arbor.sbchao.androidlogger.scheme.DaoMaster.DevOpenHelper;
 import edu.ntu.arbor.sbchao.androidlogger.scheme.DaoSession;
 import edu.ntu.arbor.sbchao.androidlogger.scheme.MobileLog;
 import edu.ntu.arbor.sbchao.androidlogger.scheme.MobileLogDao;
@@ -115,8 +116,7 @@ public class LoggingService extends Service {
 	//Network Traffic snapshots
 	TrafficSnapshot prevTraf = null;
 	TrafficSnapshot latestTraf = null;	
-	
-	
+		
     private SQLiteDatabase db;
     private DaoMaster daoMaster;
     private DaoSession daoSession;
@@ -144,8 +144,12 @@ public class LoggingService extends Service {
 		
 		//Load settings
 		SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(this);
-	    is3GUploadEnabled = settings.getBoolean(SettingsActivity.PREFS_UPLOAD, false);
-	    isLoggingAllowed  = settings.getBoolean(SettingsActivity.PREFS_LOGGING, false);
+	    is3GUploadEnabled = settings.getBoolean(SettingsActivity.PREFS_UPLOAD, false);	    
+	    isLoggingAllowed  = settings.getBoolean(SettingsActivity.PREFS_LOGGING, true);
+	    Editor editor = settings.edit();
+	    editor.putBoolean(SettingsActivity.PREFS_UPLOAD, is3GUploadEnabled);
+	    editor.putBoolean(SettingsActivity.PREFS_LOGGING, isLoggingAllowed);
+	    editor.commit();
 	    Log.i("Upload via 3G??", String.valueOf(is3GUploadEnabled));
 		
 	    //Register receivers so that we can monitor changes of sensor
@@ -168,8 +172,14 @@ public class LoggingService extends Service {
 		mLogMgr.createNewLog("network");
 		
 		//Access Local Database
-		DevOpenHelper helper = new DaoMaster.DevOpenHelper(this, "MobileLog", null);
-        db = helper.getWritableDatabase();
+		//DevOpenHelper helper = new DaoMaster.DevOpenHelper(this, "MobileLog", null);
+        //db = helper.getWritableDatabase();
+		
+		File dbfile = new File(Environment.getExternalStorageDirectory().getPath(), "AndroidLogger/netdb.db");
+		db = SQLiteDatabase.openOrCreateDatabase(dbfile, null);		
+		MobileLogDao.createTable(db, true);
+        NetworkLogDao.createTable(db, true);
+		
         daoMaster = new DaoMaster(db);
         daoSession = daoMaster.newSession();
         mobileLogDao = daoSession.getMobileLogDao();
@@ -254,10 +264,11 @@ public class LoggingService extends Service {
 				updateNetworkInfo();		
 				updateProcessInfo();
 				updateNetworkTrafficInfo();
-				uploadLog();
-				writeToLog();
-				writeToNetworkLog();
-				
+				if(isLoggingAllowed){
+					uploadLog();
+					writeToLog();
+					writeToNetworkLog();
+				}				
 			} else {				
 				Log.v("writingToLogTask", "Finished. No more loggings!"); 
 			}
@@ -545,7 +556,7 @@ public class LoggingService extends Service {
 		
 		
 		//processCurrentClass = mActMgr.getRunningTasks(1).get(0).topActivity.getClassName();
-		//Log.v("processCurrentClass", processCurrentClass);
+		//Log.v("processCurrentClass", (processCurrentClass == null ? "null" : processCurrentClass));
 		
 		//List<RunningAppProcessInfo> list = mActMgr.getRunningAppProcesses();
 		//Log.i("processName: ", list.get(0).processName);

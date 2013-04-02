@@ -15,13 +15,14 @@
         android:layout_alignTop="@+id/button_stop_logging"
         android:text="Quit" />
 
+    
     <Button
         android:id="@+id/button_refresh"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
-        android:layout_alignTop="@+id/button1"
         android:text="Refresh" />
+     
 
     <!--
     <TextView
@@ -551,7 +552,6 @@
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
         android:layout_alignTop="@+id/button_stop_logging"
-        android:layout_toLeftOf="@+id/button1"
         android:layout_toRightOf="@+id/button_refresh"
         android:text="H" />
 

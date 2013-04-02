@@ -12,7 +12,8 @@
         android:layout_height="wrap_content"
         android:title="Allow logging in background"
         android:summaryOn="The logger will collect data in background."  
-        android:summaryOff="The logger will not collect data anymore."  
+        android:summaryOff="The logger will not collect data anymore."
+        android:defaultValue="true"   
         />
     <!-- android:key="pref_allow_logging" -->
     
