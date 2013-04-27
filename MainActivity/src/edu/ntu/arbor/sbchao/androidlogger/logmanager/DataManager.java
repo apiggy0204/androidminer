@@ -56,6 +56,9 @@ public class DataManager {
 	public static final String APP_NAME = "appName";
 	public static final String TRANSMITTED_BYTE = "transmittedByte";
 	public static final String RECEIVED_BYTE = "receivedByte";
+	public static final String START_TIME = "startTime";
+	public static final String END_TIME = "endTime";
+	public static final String ACTIVITY_NAME = "activityName";
 	
 	public static DataManager getDefaultDataManager(){
 		DataManager mgr = new DataManager();
@@ -83,6 +86,15 @@ public class DataManager {
 	    mgr.reg(PROCESS_CURRENT_PACKAGE);			
 	    mgr.reg(IS_LOW_MEMORY);
 	    mgr.reg(IS_USING);
+		return mgr;
+	}
+	
+	public static DataManager getDailyActivityDataManager(){
+		DataManager mgr = new DataManager();
+		mgr.reg(DEVICE_ID);		
+		mgr.reg(START_TIME);
+		mgr.reg(END_TIME);
+		mgr.reg(ACTIVITY_NAME);
 		return mgr;
 	}
 	

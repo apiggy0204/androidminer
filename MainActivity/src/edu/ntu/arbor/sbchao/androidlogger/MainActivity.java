@@ -1,5 +1,6 @@
 package edu.ntu.arbor.sbchao.androidlogger;
 
+import java.io.File;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
@@ -14,6 +15,7 @@ import android.content.ServiceConnection;
 import android.database.sqlite.SQLiteDatabase;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
@@ -154,8 +156,11 @@ public class MainActivity extends Activity {
         //mHandler.postDelayed(enableLocationProviderThread, 1000);
         
         //Set up local databases
-        DevOpenHelper helper = new DaoMaster.DevOpenHelper(this, "MobileLog", null);
-        db = helper.getWritableDatabase();
+		File dbfile = new File(Environment.getExternalStorageDirectory().getPath(), "AndroidLogger/netdb.db");
+		db = SQLiteDatabase.openOrCreateDatabase(dbfile, null);		
+		MobileLogDao.createTable(db, true);
+        NetworkLogDao.createTable(db, true);
+		
         daoMaster = new DaoMaster(db);
         daoSession = daoMaster.newSession();
         mobileLogDao = daoSession.getMobileLogDao();
@@ -793,9 +798,7 @@ public class MainActivity extends Activity {
         c.clear(Calendar.SECOND);
         c.clear(Calendar.MILLISECOND);
         c.set(Calendar.DAY_OF_WEEK, c.getFirstDayOfWeek());
-        //Log.d("getWeekDate - Month", String.valueOf(c.getTime().getMonth()));
-        //Log.d("getWeekDate - Date", String.valueOf(c.getTime().getDate()));	   
-        //Log.d("getWeekDate - after?", String.valueOf(c.getTime().before(new Date())));
+       
         return c.getTime();
 	}
         
@@ -808,7 +811,7 @@ public class MainActivity extends Activity {
         c.clear(Calendar.MINUTE);
         c.clear(Calendar.SECOND);
         c.clear(Calendar.MILLISECOND);
-        Log.d("getTodayDate", String.valueOf(c.getTime().getDate()));
+        
         return c.getTime();
 	}
 	 
@@ -822,7 +825,7 @@ public class MainActivity extends Activity {
 	    c.clear(Calendar.MINUTE);
 	    c.clear(Calendar.SECOND);
 	    c.clear(Calendar.MILLISECOND);
-	    Log.d("getMonthDate", String.valueOf(c.getTime().getDate()));
+	    
 	    return c.getTime();
 	}
 	

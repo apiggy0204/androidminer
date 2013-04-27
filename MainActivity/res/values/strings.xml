@@ -9,4 +9,12 @@
         <string name="main_hourly_app_usage">每小時APP用量</string>
         <string name="main_settings">設定</string>
         <string name="main_contact">聯絡作者</string>
+        <string name="diary_label_whatrudoing">在做什麼呢?</string>
+        <string name="diary_label_starttime">開始時間</string>
+        <string name="diary_label_endtime">結束時間</string>
+        <string name="diary_button_save">儲存</string>
+        <string name="diary_button_cancel">清除</string>
+        <string name="choose_start_time">選擇開始時間</string>
+        <string name="choose_end_time">選擇結束時間</string>
+        <string name="diary_button_quit">結束</string>
     </resources>

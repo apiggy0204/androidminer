@@ -2,12 +2,15 @@ package edu.ntu.arbor.sbchao.androidlogger;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 
 import android.app.ActivityManager;
 import android.app.ActivityManager.RunningTaskInfo;
+import android.app.AlarmManager;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -18,6 +21,10 @@ import android.content.SharedPreferences.Editor;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -33,6 +40,7 @@ import android.os.IBinder;
 import android.os.Looper;
 import android.os.Message;
 import android.os.Process;
+import android.os.SystemClock;
 import android.preference.PreferenceManager;
 import android.telephony.TelephonyManager;
 import android.text.format.Time;
@@ -54,6 +62,10 @@ public class LoggingService extends Service {
     private ServiceHandler mServiceHandler;
     private final IBinder mBinder = new LocalBinder();        
     static boolean isServiceRunning = false;
+        
+    //Things related to the periodical logging
+    private AlarmManager mAlarmMgr;  
+    private PendingIntent mPendingIntent;
 
     boolean isUsing = true;
     static final int HIGH_RECORD_FREQ = 10000;      //10 seconds
@@ -64,6 +76,9 @@ public class LoggingService extends Service {
     //private static DataManager mDataMgr;
     
 	String deviceId;
+	
+	protected final static String ACTION_WRITE_TO_LOG = "ACTION_WRITE_TO_LOG";
+	protected final static String ACTION_ACCELEROMETER_READ = "ACTION_ACCELEROMETER_READ";
 	
     //Battery information
 	int batLevel;
@@ -77,6 +92,7 @@ public class LoggingService extends Service {
 	private LocationManager mLocMgr;
 	final static int MIN_LOC_INTERVAL = 30000;
 	final static int MIN_LOC_DISTANCE = 50;
+	
 	Location mLocation;
 	boolean isGPSProviderEnabled;	
 	boolean isNetworkProviderEnabled;
@@ -116,7 +132,19 @@ public class LoggingService extends Service {
 	//Network Traffic snapshots
 	TrafficSnapshot prevTraf = null;
 	TrafficSnapshot latestTraf = null;	
+	
+	//Motion sensor
+	private SensorManager mSensorMgr;
+	private boolean accelerometerPresent;
+	private Sensor accelerometerSensor;
+	private float accX;
+	private float accY;
+	private float accZ;
+	protected float linearAccZ;
+	protected float linearAccY;
+	protected float linearAccX;
 		
+	//Database
     private SQLiteDatabase db;
     private DaoMaster daoMaster;
     private DaoSession daoSession;
@@ -127,6 +155,8 @@ public class LoggingService extends Service {
     //Settings
 	private boolean is3GUploadEnabled;
 	private boolean isLoggingAllowed;
+	private PendingIntent mAccIntent;
+	
 	
     @Override
 	public void onCreate() {
@@ -162,19 +192,24 @@ public class LoggingService extends Service {
 		
 		LogManager.addLogInfo("http://140.112.42.22:7380/netdbmobileminer_test/", "log", "AndroidLogger", "Unuploaded", "Uploaded", "log", DataManager.getDefaultDataManager());
 		LogManager.addLogInfo("http://140.112.42.22:7380/netdbmobileminer_test/network_traffic.php", "network", "AndroidLogger", "Unuploaded_network", "Uploaded_network", "network", DataManager.getNetworkDataManager());
+		LogManager.addLogInfo("http://140.112.42.22:7380/netdbmobileminer_test/activity.php", "activty", "AndroidLogger", "Unuploaded_activity", "Uploaded_activity", "activity", DataManager.getDailyActivityDataManager());
 		//LogManager.addLogInfo("http://10.0.2.2/netdbmobileminer_test/", "log", "AndroidLogger", "Unuploaded", "Uploaded", "log", DataManager.getDefaultDataManager());
-		//LogManager.addLogInfo("http://10.0.2.2/netdbmobileminer_test/network.php", "network", "AndroidLogger", "Unuploaded_network", "Uploaded_network", "network", DataManager.getNetworkDataManager());				
+		//LogManager.addLogInfo("http://10.0.2.2/netdbmobileminer_test/network.php", "network", "AndroidLogger", "Unuploaded_network", "Uploaded_network", "network", DataManager.getNetworkDataManager());
+		//LogManager.addLogInfo("http://10.0.2.2/netdbmobileminer_test/activity.php", "activty", "AndroidLogger", "Unuploaded_activity", "Uploaded_activity", "activity", DataManager.getDailyActivityDataManager());
 		
 		mLogMgr = new LogManager(this);			
 		mLogMgr.checkExternalStorage("log");
 		mLogMgr.createNewLog("log");
 		mLogMgr.checkExternalStorage("network");
 		mLogMgr.createNewLog("network");
+		mLogMgr.checkExternalStorage("activity");
+		mLogMgr.createNewLog("activity");
 		
 		//Access Local Database
 		//DevOpenHelper helper = new DaoMaster.DevOpenHelper(this, "MobileLog", null);
         //db = helper.getWritableDatabase();
 		
+		//Database file is in the sdcard
 		File dbfile = new File(Environment.getExternalStorageDirectory().getPath(), "AndroidLogger/netdb.db");
 		db = SQLiteDatabase.openOrCreateDatabase(dbfile, null);		
 		MobileLogDao.createTable(db, true);
@@ -192,9 +227,28 @@ public class LoggingService extends Service {
 		// For each start request, send a message to start a job and deliver the
 		// start ID so we know which request we're stopping when we finish the job
 		Log.i("onStartCommand", "service starting");
-		Message msg = mServiceHandler.obtainMessage();
+		/*Message msg = mServiceHandler.obtainMessage();
 		msg.arg1 = startId;
-		mServiceHandler.sendMessage(msg);
+		mServiceHandler.sendMessage(msg);*/
+		
+		if(!isServiceRunning){
+			Log.i("handleMessage", "The logging is not running...");
+			isServiceRunning = true;
+			 
+			//在AlarmManager設定重覆執行的Server的intent
+			mPendingIntent = PendingIntent.getBroadcast(this, 0, new Intent(ACTION_WRITE_TO_LOG), PendingIntent.FLAG_UPDATE_CURRENT);
+			long triggerAtTime = SystemClock.elapsedRealtime() + recordFreq;
+	        mAlarmMgr.setRepeating(AlarmManager.ELAPSED_REALTIME, triggerAtTime, recordFreq, mPendingIntent);
+	        
+	        //Read acc. meter every 50 ms
+	        mAccIntent = PendingIntent.getBroadcast(this, 0, new Intent(LoggingService.ACTION_ACCELEROMETER_READ), PendingIntent.FLAG_UPDATE_CURRENT);
+			triggerAtTime = SystemClock.elapsedRealtime() + 50;
+	        mAlarmMgr.setRepeating(AlarmManager.ELAPSED_REALTIME, triggerAtTime, 50, mAccIntent); 
+	        
+			Log.i("handleMessage", "The logging is now running!");
+		} else {
+			Log.i("handleMessage", "The logging is already running...");
+		}
 		
 		// If we get killed, after returning from here, restart
 	    return START_STICKY;
@@ -238,6 +292,7 @@ public class LoggingService extends Service {
 		try {			
 			LogManager.getLogInfoByName("log").getLogFos().close();
 			LogManager.getLogInfoByName("network").getLogFos().close();
+			LogManager.getLogInfoByName("activity").getLogFos().close();
 			//mLogMgr.logFos.close();
 		} catch (IOException e) {
 			Log.e("onDestroy", "cannot close the file output stream");
@@ -271,15 +326,48 @@ public class LoggingService extends Service {
 				}				
 			} else {				
 				Log.v("writingToLogTask", "Finished. No more loggings!"); 
+				mAlarmMgr.cancel(mPendingIntent);
 			}
 		}
 	};
-	
+
+	//Write to the log when system alarm manager periodically notifies this service
+	private BroadcastReceiver mWriteToLogReceiver = new BroadcastReceiver(){
+		@Override
+		public void onReceive(Context context, Intent intent) {
+			
+			String action = intent.getAction();
+			if(ACTION_WRITE_TO_LOG.equals(action)){
+				
+				if(isServiceRunning){					
+					Log.v("WriteToLogReceiver", "Still logging!!" );
+											
+					updateNetworkInfo();		
+					updateProcessInfo();
+					updateNetworkTrafficInfo();
+					  
+					if(isLoggingAllowed){
+						uploadLog();
+						writeToLog();
+						writeToNetworkLog();
+					}				
+				} else {				
+					Log.v("WriteToLogReceiver", "Finished. No more loggings!"); 
+					
+				}
+			}
+		}		
+	};
+
 	private void registerServices(){
-		registerReceiver(mBatteryChangedReceiver,new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
-		registerReceiver(mScreenChangedReceiver,new IntentFilter(Intent.ACTION_SCREEN_ON));
-		registerReceiver(mScreenChangedReceiver,new IntentFilter(Intent.ACTION_SCREEN_OFF)); 
-		registerReceiver(mDateChangedReceiver,new IntentFilter(Intent.ACTION_DATE_CHANGED));
+		
+		registerReceiver(this.mWriteToLogReceiver, new IntentFilter(LoggingService.ACTION_WRITE_TO_LOG));
+		registerReceiver(this.mAccReadReceiver, new IntentFilter(LoggingService.ACTION_ACCELEROMETER_READ));
+		
+		registerReceiver(mBatteryChangedReceiver, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+		registerReceiver(mScreenChangedReceiver, new IntentFilter(Intent.ACTION_SCREEN_ON));
+		registerReceiver(mScreenChangedReceiver, new IntentFilter(Intent.ACTION_SCREEN_OFF)); 
+		registerReceiver(mDateChangedReceiver, new IntentFilter(Intent.ACTION_DATE_CHANGED));
 		
 		mLocMgr = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);		
 		mLocMgr.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, MIN_LOC_INTERVAL, MIN_LOC_DISTANCE, mLocationListener);
@@ -293,18 +381,42 @@ public class LoggingService extends Service {
 		mActMgr = (ActivityManager) this.getSystemService(ACTIVITY_SERVICE);		
 		
 		PreferenceManager.getDefaultSharedPreferences(this).registerOnSharedPreferenceChangeListener(onSharedPreferenceChangedListener);
+		
+		mAlarmMgr = (AlarmManager) this.getSystemService(Context.ALARM_SERVICE);
+		
+		mSensorMgr = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+		List<Sensor> sensorList = mSensorMgr.getSensorList(Sensor.TYPE_ACCELEROMETER); 
+		if(sensorList.size() > 0){
+			accelerometerPresent = true;
+			accelerometerSensor = sensorList.get(0);
+			mSensorMgr.registerListener(mAccelerometerListener, accelerometerSensor, 5);
+		}
+		else{
+			accelerometerPresent = false;
+		}
+		
+		sensorList = mSensorMgr.getSensorList(Sensor.TYPE_LINEAR_ACCELERATION);
+		if(sensorList.size() > 0){			
+			mSensorMgr.registerListener(mLinearAccListener, sensorList.get(0), 5);
+		}
+
 	}
 	
 	private void unregisterServices(){
 		unregisterReceiver(mBatteryChangedReceiver);
 		unregisterReceiver(mDateChangedReceiver);
 		unregisterReceiver(mScreenChangedReceiver);
+		unregisterReceiver(mWriteToLogReceiver);
 		
 		mLocMgr.removeUpdates(mLocationListener);
+		mSensorMgr.unregisterListener(mAccelerometerListener);
+		mSensorMgr.unregisterListener(mLinearAccListener);
+		
 		//mTelMgr.listen(mPhoneStateListener, PhoneStateListener.LISTEN_NONE);		
 		PreferenceManager.getDefaultSharedPreferences(this).unregisterOnSharedPreferenceChangeListener(onSharedPreferenceChangedListener);
 	}
 	
+	//Change logging preference when modified by the user
 	private OnSharedPreferenceChangeListener onSharedPreferenceChangedListener = new OnSharedPreferenceChangeListener(){
 
 		@Override
@@ -317,7 +429,9 @@ public class LoggingService extends Service {
 				isLoggingAllowed = sharedPreferences.getBoolean(key, false);
 				Log.i("onSharedPreferenceChanged", "Allow logging in service has been set to " + isLoggingAllowed);
 			}
-		}};
+	}};
+	
+	
 	
 	private BroadcastReceiver mBatteryChangedReceiver = new BroadcastReceiver(){ 
 		public void onReceive(Context context,Intent intent){
@@ -333,7 +447,7 @@ public class LoggingService extends Service {
 		}
 	};
 	
-	//Create new logs when a new day starts!
+	//Create new logs when a new day starts
 	private BroadcastReceiver mDateChangedReceiver = new BroadcastReceiver(){
 		@Override
 		public void onReceive(Context context,Intent intent){
@@ -359,8 +473,113 @@ public class LoggingService extends Service {
 			}else if (Intent.ACTION_SCREEN_OFF.equals(action)){				
 				Log.v("LOGGER_Screen","SCREEN IS OFF");
 				isUsing = false;
-				recordFreq = HIGH_RECORD_FREQ; //TODO
+				recordFreq = HIGH_RECORD_FREQ; 
 			}
+		}
+	};
+	protected ArrayList<Float> accXList = new ArrayList<Float>();
+	protected ArrayList<Float> accYList = new ArrayList<Float>();
+	protected ArrayList<Float> accZList = new ArrayList<Float>();
+	
+	//Record the accelerometer every 50 millisecond
+	private BroadcastReceiver mAccReadReceiver = new BroadcastReceiver(){
+
+		@Override
+		public void onReceive(Context context, Intent intent) {
+			// TODO Auto-generated method stub
+			String action=intent.getAction();
+			if(LoggingService.ACTION_ACCELEROMETER_READ.equals(action)){
+				
+				//TODO
+				accXList.add(accX);
+				accYList.add(accY);
+				accZList.add(accZ);
+				
+				if( accXList.size() == 200 ){
+					//mean
+					float meanX = 0;
+					for(Float x : accXList){
+						meanX += x/200;
+					}
+					
+					//standard deviation
+					float stdX = 0;
+					for(Float x : accXList){
+						stdX += (x-meanX)*(x-meanX)/200;
+					}
+					stdX = (float) Math.sqrt(stdX);
+					
+					float absDiff = 0;
+					for(Float x : accXList){
+						absDiff += Math.abs(x-meanX)/200;
+					}
+					
+					float avgAcc = 0;
+					for(Float x : accXList){
+						//TODO
+					}
+					
+					//TODO time between peaks
+					
+					//TODO
+					float [] binnedDist = new float[10];
+					float minX = 10000;
+					float maxX = -10000;
+
+					for(Float x : accXList){
+						if(x > maxX) maxX = x;
+						if(x < minX) minX = x;
+					}
+					Log.i(ACTION_ACCELEROMETER_READ, "min: " + String.valueOf(minX));
+					Log.i(ACTION_ACCELEROMETER_READ, "max: " + String.valueOf(maxX));
+					
+					for(Float x : accXList){
+						int index = (int) Math.floor(10*(x-minX)/(maxX-minX));
+						Log.i(ACTION_ACCELEROMETER_READ, "index: " + String.valueOf(index));
+						if(index < 10) binnedDist[index] += 1/200.0;
+						else binnedDist[9] += 1/200.0;
+					}
+					
+					Log.i(ACTION_ACCELEROMETER_READ, String.valueOf(accXList.size()));
+					Log.i(ACTION_ACCELEROMETER_READ, String.valueOf(meanX));
+					Log.i(ACTION_ACCELEROMETER_READ, String.valueOf(stdX));
+					
+					for(int i=0; i<10; i++){
+						Log.i(ACTION_ACCELEROMETER_READ, String.valueOf(i) + ": " + String.valueOf(binnedDist[i]));
+					}
+					
+					accXList.clear();
+					accYList.clear();
+					accZList.clear();
+					
+				}
+			}
+		}		
+	};
+	
+	private SensorEventListener mAccelerometerListener = new SensorEventListener(){
+		@Override
+		public void onAccuracyChanged(Sensor arg0, int arg1) {
+			
+		} 
+		@Override
+		public void onSensorChanged(SensorEvent event) {
+			accX = event.values[0];
+			accY = event.values[1];
+			accZ = event.values[2];
+		}
+	};
+	
+	private SensorEventListener mLinearAccListener = new SensorEventListener(){
+		@Override
+		public void onAccuracyChanged(Sensor arg0, int arg1) {
+			
+		} 
+		@Override
+		public void onSensorChanged(SensorEvent event) {
+			linearAccX = event.values[0];
+			linearAccY = event.values[1];
+			linearAccZ = event.values[2];
 		}
 	};
 	
@@ -761,6 +980,7 @@ public class LoggingService extends Service {
 			}
 		}
 	}*/
+	
 	
 }
 	

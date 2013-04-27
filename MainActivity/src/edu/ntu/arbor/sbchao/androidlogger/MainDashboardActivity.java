@@ -24,7 +24,13 @@ public class MainDashboardActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
         //setContentView(R.layout.activity_main);
+		setUi();
+
+		startService(new Intent(this, LoggingService.class));
 		
+	}
+	
+	private void setUi(){
 		ViewGroup dashboardLayout = new DashboardLayout(this);
 		dashboardLayout.setBackgroundColor(Color.BLACK);
 		ImageButton buttonMobile = new ImageButton(this);

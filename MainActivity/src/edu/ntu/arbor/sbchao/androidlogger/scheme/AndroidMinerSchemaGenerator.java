@@ -14,6 +14,7 @@ public class AndroidMinerSchemaGenerator {
 
         addMobileLog(schema);
         addNetworkLog(schema);
+        addActivityLog(schema);
         
         new DaoGenerator().generateAll(schema, ".");
     }
@@ -59,6 +60,16 @@ public class AndroidMinerSchemaGenerator {
     	mobileLog.addLongProperty(DataManager.RECEIVED_BYTE).notNull();
     	mobileLog.addStringProperty(DataManager.APP_NAME).notNull();
     	mobileLog.addBooleanProperty(DataManager.IS_USING).notNull();
+    }
+
+    private static void addActivityLog(Schema schema){
+    	Entity mobileLog = schema.addEntity("ActivityLog");
+    	
+    	mobileLog.addIdProperty();
+    	mobileLog.addStringProperty(DataManager.DEVICE_ID).notNull();
+    	mobileLog.addDateProperty(DataManager.START_TIME).notNull();
+    	mobileLog.addDateProperty(DataManager.END_TIME).notNull();
+    	mobileLog.addStringProperty(DataManager.ACTIVITY_NAME).notNull();     	
     }
     
     /*
