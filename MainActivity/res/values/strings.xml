@@ -17,4 +17,7 @@
         <string name="choose_start_time">選擇開始時間</string>
         <string name="choose_end_time">選擇結束時間</string>
         <string name="diary_button_quit">結束</string>
+        <string name="main_diary_input">寫日記</string>
+        <string name="main_read_diary">讀日記</string>
+        <string name="main_map">讀軌跡</string>
     </resources>

@@ -190,12 +190,12 @@ public class LoggingService extends Service {
 			Log.i("onStartCommand", "registering services");
 		}
 		
-		LogManager.addLogInfo("http://140.112.42.22:7380/netdbmobileminer_test/", "log", "AndroidLogger", "Unuploaded", "Uploaded", "log", DataManager.getDefaultDataManager());
-		LogManager.addLogInfo("http://140.112.42.22:7380/netdbmobileminer_test/network_traffic.php", "network", "AndroidLogger", "Unuploaded_network", "Uploaded_network", "network", DataManager.getNetworkDataManager());
-		LogManager.addLogInfo("http://140.112.42.22:7380/netdbmobileminer_test/activity.php", "activty", "AndroidLogger", "Unuploaded_activity", "Uploaded_activity", "activity", DataManager.getDailyActivityDataManager());
-		//LogManager.addLogInfo("http://10.0.2.2/netdbmobileminer_test/", "log", "AndroidLogger", "Unuploaded", "Uploaded", "log", DataManager.getDefaultDataManager());
-		//LogManager.addLogInfo("http://10.0.2.2/netdbmobileminer_test/network.php", "network", "AndroidLogger", "Unuploaded_network", "Uploaded_network", "network", DataManager.getNetworkDataManager());
-		//LogManager.addLogInfo("http://10.0.2.2/netdbmobileminer_test/activity.php", "activty", "AndroidLogger", "Unuploaded_activity", "Uploaded_activity", "activity", DataManager.getDailyActivityDataManager());
+		//LogManager.addLogInfo("http://140.112.42.22:7380/netdbmobileminer_test/", "log", "AndroidLogger", "Unuploaded", "Uploaded", "log", DataManager.getDefaultDataManager());
+		//LogManager.addLogInfo("http://140.112.42.22:7380/netdbmobileminer_test/network_traffic.php", "network", "AndroidLogger", "Unuploaded_network", "Uploaded_network", "network", DataManager.getNetworkDataManager());
+		//LogManager.addLogInfo("http://140.112.42.22:7380/netdbmobileminer_test/activity.php", "activty", "AndroidLogger", "Unuploaded_activity", "Uploaded_activity", "activity", DataManager.getDailyActivityDataManager());
+		LogManager.addLogInfo("http://10.0.2.2/netdbmobileminer_test/", "log", "AndroidLogger", "Unuploaded", "Uploaded", "log", DataManager.getDefaultDataManager());
+		LogManager.addLogInfo("http://10.0.2.2/netdbmobileminer_test/network.php", "network", "AndroidLogger", "Unuploaded_network", "Uploaded_network", "network", DataManager.getNetworkDataManager());
+		LogManager.addLogInfo("http://10.0.2.2/netdbmobileminer_test/activity.php", "activty", "AndroidLogger", "Unuploaded_activity", "Uploaded_activity", "activity", DataManager.getDailyActivityDataManager());
 		
 		mLogMgr = new LogManager(this);			
 		mLogMgr.checkExternalStorage("log");
@@ -456,7 +456,9 @@ public class LoggingService extends Service {
 				mLogMgr.createNewLog("log");
 				mLogMgr.moveToExternalStorage("log");			
 				mLogMgr.createNewLog("network");
-				mLogMgr.moveToExternalStorage("network");
+				mLogMgr.moveToExternalStorage("network");						
+				mLogMgr.createNewLog("activity");
+				mLogMgr.moveToExternalStorage("activity");
 			}
 		}
 	};
@@ -530,22 +532,22 @@ public class LoggingService extends Service {
 						if(x > maxX) maxX = x;
 						if(x < minX) minX = x;
 					}
-					Log.i(ACTION_ACCELEROMETER_READ, "min: " + String.valueOf(minX));
-					Log.i(ACTION_ACCELEROMETER_READ, "max: " + String.valueOf(maxX));
+					//Log.i(ACTION_ACCELEROMETER_READ, "min: " + String.valueOf(minX));
+					//Log.i(ACTION_ACCELEROMETER_READ, "max: " + String.valueOf(maxX));
 					
 					for(Float x : accXList){
 						int index = (int) Math.floor(10*(x-minX)/(maxX-minX));
-						Log.i(ACTION_ACCELEROMETER_READ, "index: " + String.valueOf(index));
+						//Log.i(ACTION_ACCELEROMETER_READ, "index: " + String.valueOf(index));
 						if(index < 10) binnedDist[index] += 1/200.0;
 						else binnedDist[9] += 1/200.0;
 					}
 					
-					Log.i(ACTION_ACCELEROMETER_READ, String.valueOf(accXList.size()));
-					Log.i(ACTION_ACCELEROMETER_READ, String.valueOf(meanX));
-					Log.i(ACTION_ACCELEROMETER_READ, String.valueOf(stdX));
+					//Log.i(ACTION_ACCELEROMETER_READ, String.valueOf(accXList.size()));
+					//Log.i(ACTION_ACCELEROMETER_READ, String.valueOf(meanX));
+					//Log.i(ACTION_ACCELEROMETER_READ, String.valueOf(stdX));
 					
 					for(int i=0; i<10; i++){
-						Log.i(ACTION_ACCELEROMETER_READ, String.valueOf(i) + ": " + String.valueOf(binnedDist[i]));
+						//Log.i(ACTION_ACCELEROMETER_READ, String.valueOf(i) + ": " + String.valueOf(binnedDist[i]));
 					}
 					
 					accXList.clear();

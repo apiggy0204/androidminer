@@ -71,7 +71,8 @@ public class DiaryInputActivity extends Activity {
 		
 		deviceId = ((TelephonyManager) this.getSystemService(Context.TELEPHONY_SERVICE)).getDeviceId();
 		
-		LogManager.addLogInfo("http://140.112.42.22:7380/netdbmobileminer_test/activity.php", "activty", "AndroidLogger", "Unuploaded_activity", "Uploaded_activity", "activity", DataManager.getDailyActivityDataManager());
+		//LogManager.addLogInfo("http://140.112.42.22:7380/netdbmobileminer_test/activity.php", "activty", "AndroidLogger", "Unuploaded_activity", "Uploaded_activity", "activity", DataManager.getDailyActivityDataManager());
+		LogManager.addLogInfo("http://10.0.2.2/netdbmobileminer_test/activity.php", "activty", "AndroidLogger", "Unuploaded_activity", "Uploaded_activity", "activity", DataManager.getDailyActivityDataManager());
 		LogManager mLogMgr = new LogManager(this);	
 		mLogMgr.checkExternalStorage("activity");
 		mLogMgr.createNewLog("activity");
@@ -173,7 +174,7 @@ public class DiaryInputActivity extends Activity {
 		startTime.set(mStartTime.getSeconds(), mStartTime.getMinutes(), mStartTime.getHours(), mStartTime.getDate(), mStartTime.getMonth(), mStartTime.getYear());
 		String timeStr = String.valueOf(startTime.year) + "-" + String.valueOf(startTime.month+1) + "-" + String.valueOf(startTime.monthDay)  //Month = [0-11]
 				+ " " + startTime.format("%T");*/
-		String timeStr = String.valueOf(mStartTime.get(Calendar.YEAR)) + "-" + String.valueOf(mStartTime.get(Calendar.MONTH)) + "-" + String.valueOf(mStartTime.get(Calendar.DAY_OF_MONTH))  
+		String timeStr = String.valueOf(mStartTime.get(Calendar.YEAR)) + "-" + String.valueOf(mStartTime.get(Calendar.MONTH)+1) + "-" + String.valueOf(mStartTime.get(Calendar.DAY_OF_MONTH))  
 			+ " " + String.valueOf(mStartTime.get(Calendar.HOUR_OF_DAY)) + ":" + String.valueOf(mStartTime.get(Calendar.MINUTE)) + ":" + String.valueOf(mStartTime.get(Calendar.SECOND));
 		dataMgr.put(DataManager.START_TIME, timeStr);
 		/*
@@ -181,7 +182,7 @@ public class DiaryInputActivity extends Activity {
 		endTime.set(mEndTime.getSeconds(), mEndTime.getMinutes(), mEndTime.getHours(), mEndTime.getDate(), mEndTime.getMonth(), mEndTime.getYear());
 		timeStr = String.valueOf(endTime.year) + "-" + String.valueOf(endTime.month+1) + "-" + String.valueOf(endTime.monthDay)  //Month = [0-11]
 				+ " " + endTime.format("%T");*/
-		timeStr = String.valueOf(mEndTime.get(Calendar.YEAR)) + "-" + String.valueOf(mEndTime.get(Calendar.MONTH)) + "-" + String.valueOf(mEndTime.get(Calendar.DAY_OF_MONTH))  
+		timeStr = String.valueOf(mEndTime.get(Calendar.YEAR)) + "-" + String.valueOf(mEndTime.get(Calendar.MONTH+1)) + "-" + String.valueOf(mEndTime.get(Calendar.DAY_OF_MONTH))  
 				+ " " + String.valueOf(mEndTime.get(Calendar.HOUR_OF_DAY)) + ":" + String.valueOf(mEndTime.get(Calendar.MINUTE)) + ":" + String.valueOf(mEndTime.get(Calendar.SECOND));
 		dataMgr.put(DataManager.END_TIME, timeStr);
 		

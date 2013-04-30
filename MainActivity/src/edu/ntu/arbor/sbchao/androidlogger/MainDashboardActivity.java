@@ -33,6 +33,54 @@ public class MainDashboardActivity extends Activity {
 	private void setUi(){
 		ViewGroup dashboardLayout = new DashboardLayout(this);
 		dashboardLayout.setBackgroundColor(Color.BLACK);
+		
+		ImageButton buttonDiary = new ImageButton(this);
+		buttonDiary.setImageResource(R.drawable.main_diary);
+		buttonDiary.setBackgroundColor(Color.TRANSPARENT);
+		buttonDiary.setOnClickListener(new OnClickListener(){
+			@Override
+			public void onClick(View arg0) {
+				Intent intent = new Intent();
+				intent.setClass(MainDashboardActivity.this, DiaryInputActivity.class);
+				startActivity(intent);
+		}});
+		TextView textDiary = new TextView(this);
+		textDiary.setText(R.string.main_diary_input);
+		textDiary.setTextColor(Color.WHITE);
+		
+		ImageButton buttonReadDiary = new ImageButton(this);
+		buttonReadDiary.setImageResource(R.drawable.main_read_diary);
+		buttonReadDiary.setBackgroundColor(Color.TRANSPARENT);
+		buttonReadDiary.setOnClickListener(new OnClickListener(){
+			@Override
+			public void onClick(View arg0) {
+				//TODO
+				
+				Intent intent = new Intent();
+				intent.setClass(MainDashboardActivity.this, ReadDiaryActivity.class);
+				startActivity(intent);
+				
+		}});
+		TextView textReadDiary = new TextView(this);
+		textReadDiary.setText(R.string.main_read_diary);
+		textReadDiary.setTextColor(Color.WHITE);
+
+		
+		ImageButton buttonMap = new ImageButton(this);
+		buttonMap.setImageResource(R.drawable.main_map);
+		buttonMap.setBackgroundColor(Color.TRANSPARENT);
+		buttonMap.setOnClickListener(new OnClickListener(){
+			@Override
+			public void onClick(View arg0) {				
+				Intent intent = new Intent();
+				intent.setClass(MainDashboardActivity.this, ReadDiaryActivity.class); //TODO
+				startActivity(intent);				
+		}});
+		TextView textMap = new TextView(this);
+		textMap.setText(R.string.main_map);
+		textMap.setTextColor(Color.WHITE);
+		
+		
 		ImageButton buttonMobile = new ImageButton(this);
 		buttonMobile.setImageResource(R.drawable.main_mobile_status);
 		buttonMobile.setBackgroundColor(Color.TRANSPARENT);
@@ -132,10 +180,13 @@ public class MainDashboardActivity extends Activity {
 		textContact.setText(R.string.main_contact);
 		textContact.setTextColor(Color.WHITE);
 
-		dashboardLayout.addView(getTextedButton(buttonMobile, textMobile));
-		dashboardLayout.addView(getTextedButton(buttonNetwork, textNetwork));
-		dashboardLayout.addView(getTextedButton(buttonHourlyAppUsage, textHourlyAppUsage));
-		dashboardLayout.addView(getTextedButton(buttonDailyAppUsage, textDailyAppUsage));
+		dashboardLayout.addView(getTextedButton(buttonDiary, textDiary));
+		dashboardLayout.addView(getTextedButton(buttonReadDiary, textReadDiary));
+		dashboardLayout.addView(getTextedButton(buttonMap, textMap));
+		//dashboardLayout.addView(getTextedButton(buttonMobile, textMobile));
+		//dashboardLayout.addView(getTextedButton(buttonNetwork, textNetwork));
+		//dashboardLayout.addView(getTextedButton(buttonHourlyAppUsage, textHourlyAppUsage));
+		//dashboardLayout.addView(getTextedButton(buttonDailyAppUsage, textDailyAppUsage));
 		dashboardLayout.addView(getTextedButton(buttonSettings, textSettings));
 		dashboardLayout.addView(getTextedButton(buttonContact, textContact));
 		

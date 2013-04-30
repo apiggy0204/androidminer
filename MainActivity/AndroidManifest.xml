@@ -23,46 +23,8 @@
     <application
         android:allowBackup="true"
         android:icon="@drawable/netdbfans"
-        android:label="@string/app_name"
-         >
-        <!-- 
-        <activity
-            android:name="edu.ntu.arbor.sbchao.androidlogger.MainActivity"
-            android:label="@string/app_name" >
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-        
-                <activity
-            android:name="edu.ntu.arbor.sbchao.androidlogger.MobileStatusActivity"
-            android:label="@string/app_name" >
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-        
-        <activity
-            android:name="edu.ntu.arbor.sbchao.androidlogger.NetworkTrafficActivity"
-            android:label="@string/app_name" >
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-        
-        <activity
-            android:name="com.google.android.apps.iosched.ui.widget.UiTestActivity"
-            android:label="@string/app_name" >
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-         -->
-         
+        android:label="@string/app_name">
+
         <activity
             android:name="edu.ntu.arbor.sbchao.androidlogger.MainDashboardActivity"
             android:label="@string/app_name" >
@@ -71,14 +33,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-         <activity
-            android:name="edu.ntu.arbor.sbchao.androidlogger.DiaryInputActivity"
-            android:label="@string/app_name" >
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+        
+		<activity android:name="edu.ntu.arbor.sbchao.androidlogger.DiaryInputActivity"></activity>
+		<activity android:name="edu.ntu.arbor.sbchao.androidlogger.ReadDiaryActivity"></activity>
 		<activity android:name="edu.ntu.arbor.sbchao.androidlogger.SettingsActivity"></activity>
 		<activity android:name="edu.ntu.arbor.sbchao.androidlogger.MobileStatusActivity"></activity>
 		<activity android:name="edu.ntu.arbor.sbchao.androidlogger.NetworkTrafficActivity"></activity>
