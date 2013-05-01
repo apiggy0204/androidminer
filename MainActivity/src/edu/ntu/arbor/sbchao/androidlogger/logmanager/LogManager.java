@@ -24,23 +24,21 @@ import org.apache.http.protocol.HTTP;
 import android.content.Context;
 import android.os.Environment;
 import android.util.Log;
-
+/*
+ * This class creates logs and their directories, moves them to sdcard and uploads them to the server according to LogInfo 
+ * 
+ * */
 public class LogManager {
-	
-	//static final String SERVER_PATH = "http://10.0.2.2/netdbmobileminer_test/";
-	/*static final String SERVER_PATH = "http://140.112.42.22:7380/netdbmobileminer_test/";
-	static final String LOG_DIR_PATH = "/AndroidLogger";
-    static final String LOG_UNUPLOADED_PATH = "/Unuploaded";
-    static final String LOG_UPLOADED_PATH = "/Uploaded";
-    static final String TAG = "log"; //To identify the type of the log*/
-    
-    /*String serverPath = "http://140.112.42.22:7380/netdbmobileminer_test/";
-	String dirPath = "/AndroidLogger";
-    String unuploadedPath = "/Unuploaded";
-    String uploadedPath = "/Uploaded";
-    String tagName = "log"; //To identify the type of the log*/
         
     private static HashMap<String, LogInfo> logInfos = new HashMap<String, LogInfo>();
+    private static boolean debug = false;
+    
+    public final static LogInfo mobileLogInfo = new LogInfo("http://140.112.42.22:7380/netdbmobileminer_test/", "log", "AndroidLogger", "Unuploaded", "Uploaded", "log", DataManager.getMobileDataManager());
+	public final static LogInfo activityLogInfo = new LogInfo("http://140.112.42.22:7380/netdbmobileminer_test/activity.php", "activty", "AndroidLogger", "Unuploaded_activity", "Uploaded_activity", "activity", DataManager.getActivityDataManager());
+	public final static LogInfo networkLogInfo = new LogInfo("http://140.112.42.22:7380/netdbmobileminer_test/network_traffic.php", "network", "AndroidLogger", "Unuploaded_network", "Uploaded_network", "network", DataManager.getNetworkDataManager());
+	public final static LogInfo debugMobileLogInfo = new LogInfo("http://10.0.2.2/netdbmobileminer_test/", "log", "AndroidLogger", "Unuploaded", "Uploaded", "log", DataManager.getMobileDataManager());
+	public final static LogInfo debugActivityLogInfo = new LogInfo("http://10.0.2.2/netdbmobileminer_test/activity.php", "activty", "AndroidLogger", "Unuploaded_activity", "Uploaded_activity", "activity", DataManager.getActivityDataManager());
+	public final static LogInfo debugNetworkLogInfo = new LogInfo("http://10.0.2.2/netdbmobileminer_test/network.php", "network", "AndroidLogger", "Unuploaded_network", "Uploaded_network", "network", DataManager.getNetworkDataManager());
     
     //private static DataManager dMgr = new DataManager();
     
@@ -54,18 +52,27 @@ public class LogManager {
     
     public LogManager(Context context){
     	this.context = context;
+    	
+    	addLogInfo(getMobileloginfo());
+    	addLogInfo(getActivityloginfo());
+    	addLogInfo(getNetworkloginfo());
+		
+		checkExternalStorage("log");
+		createNewLogIfNotExists("log");
+		checkExternalStorage("network");
+		createNewLogIfNotExists("network");
+		checkExternalStorage("activity");
+		createNewLogIfNotExists("activity");
     }
     
-    /*
-    public LogManager(Context context, String serverPath, String dirPath, String unuploadedPath, String uploadedPath, String tagName){
-    	this.context = context;
-    	this.serverPath = serverPath;
-    	this.dirPath = dirPath;
-    	this.unuploadedPath = unuploadedPath;
-    	this.uploadedPath = uploadedPath;
-    	this.tagName = tagName;    	
-    }*/
-
+    public void createNewLogsIfNotExist(){
+		checkExternalStorage("log");
+		createNewLogIfNotExists("log");
+		checkExternalStorage("network");
+		createNewLogIfNotExists("network");
+		checkExternalStorage("activity");
+		createNewLogIfNotExists("activity");
+    }
     
     public static void addLogInfo(String serverPath, String localPath, String dirPath, String unuploadedPath, String uploadedPath, String logName, DataManager mgr){
     	if( logInfos.containsKey(logName) == false ){
@@ -73,41 +80,70 @@ public class LogManager {
     	}
     }
     
+    public static void addLogInfo(LogInfo info){
+    	if( logInfos.containsKey(info.getLogName()) == false ){
+    		logInfos.put(info.getLogName(), info);
+    	}
+    }
+    
+    public static void finish(){
+		try {
+			getLogInfoByName("log").getLogFos().close();
+			getLogInfoByName("network").getLogFos().close();
+			getLogInfoByName("activity").getLogFos().close();
+		} catch (IOException e) {
+			Log.e("onDestroy", "cannot close the file output stream");
+			e.printStackTrace();
+		}
+    }
+    
     public static LogInfo getLogInfoByName(String logName){
 		return logInfos.get(logName);
 	}
     
-    /*
-    public static FileOutputStream getFosByName(String logName){
-    	return logInfos.get(logName).logFos;
-    }*/
+	public static LogInfo getMobileloginfo() {
+		if(debug) return debugMobileLogInfo;
+		else return mobileLogInfo;
+	}
+
+	public static LogInfo getActivityloginfo() {
+		if(debug) return debugActivityLogInfo;
+		else return activityLogInfo;
+	}
+
+	public static LogInfo getNetworkloginfo() {
+		if(debug) return debugNetworkLogInfo;
+		else return networkLogInfo;
+	}
     
+	public static void uploadByLogName(String logName){
+		
+		LogInfo info = logInfos.get(logName);
+		String extPath = Environment.getExternalStorageDirectory().getPath();
+		File logDir = new File(extPath, info.dirPath);
+		File unuploadedDir = new File(logDir, info.unuploadedPath);	
+		File uploadedDir   = new File(logDir, info.uploadedPath); 
+		File[] fileList = unuploadedDir.listFiles();
+		
+		if( fileList != null ){
+			Log.i("sendStatistics", "There are " + fileList.length + " unuploaded files" );
+			for (File file : fileList){			
+				boolean uploaded = uploadSingleFile(file, info);				
+				Log.i("sendStatistics", "upload " + file.getPath() + "? " + String.valueOf(uploaded));
+				if(uploaded){
+					//Move to the uploaded directory
+					File dest = new File(uploadedDir, file.getName());
+					boolean isMoved = file.renameTo(dest);
+					Log.i("sendStatistics", "The uploaded file has been moved to" + dest.getPath() + "?" + String.valueOf(isMoved));
+				}
+			}						
+		}
+	}
+	
 	public static void uploadAll(){
-		//TODO make a notification bar
-		
+
 		for(String logName : logInfos.keySet()){
-		
-			LogInfo info = logInfos.get(logName);
-			
-			String extPath = Environment.getExternalStorageDirectory().getPath();
-			File logDir = new File(extPath, info.dirPath);
-			File unuploadedDir = new File(logDir, info.unuploadedPath);	
-			File uploadedDir   = new File(logDir, info.uploadedPath); 
-			File[] fileList = unuploadedDir.listFiles();
-			
-			if( fileList != null ){
-				Log.i("sendStatistics", "There are " + fileList.length + " unuploaded files" );
-				for (File file : fileList){			
-					boolean uploaded = uploadSingleFile(file, info);				
-					Log.i("sendStatistics", "upload " + file.getPath() + "? " + String.valueOf(uploaded));
-					if(uploaded){
-						//Move to the uploaded directory
-						File dest = new File(uploadedDir, file.getName());
-						boolean isMoved = file.renameTo(dest);
-						Log.i("sendStatistics", "The uploaded file has been moved to" + dest.getPath() + "?" + String.valueOf(isMoved));
-					}
-				}						
-			}
+			uploadByLogName(logName);
 		}
 		
 	}
@@ -197,7 +233,7 @@ public class LogManager {
 		}
 	}
 	
-	public void createNewLog(String logName){				
+	public void createNewLogIfNotExists(String logName){				
 		
 		LogInfo info = logInfos.get(logName);
 		
@@ -281,8 +317,6 @@ public class LogManager {
 			return false;
 		}		
 	}
-	
-	
 	
 	//A helper function which copies a file
 	private void copyFile(File src, File dst) throws IOException {

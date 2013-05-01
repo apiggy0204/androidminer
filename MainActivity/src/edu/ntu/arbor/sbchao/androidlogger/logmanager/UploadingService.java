@@ -17,8 +17,15 @@ public class UploadingService extends IntentService {
 	@Override
 	protected void onHandleIntent(Intent intent) {
 		Log.i("UploadingService", "start!");
-		LogManager.uploadAll();
+		//LogManager.uploadAll();
+		LogManager.uploadByLogName("log");
+		LogManager.uploadByLogName("network");
+		
+		DatabaseManager dbMgr = new DatabaseManager(this);
+		dbMgr.openDb();
+		dbMgr.uploadActivityLogs();
 		Log.i("UploadingService", "finished!");
+		dbMgr.closeDb();
 	}
 
 }

@@ -10,7 +10,7 @@ import edu.ntu.arbor.sbchao.androidlogger.logmanager.DataManager;
 public class AndroidMinerSchemaGenerator {
 
 	public static void main(String[] args) throws Exception {
-        Schema schema = new Schema(2, "edu.ntu.arbor.sbchao.androidlogger.scheme");
+        Schema schema = new Schema(6, "edu.ntu.arbor.sbchao.androidlogger.scheme");
 
         addMobileLog(schema);
         addNetworkLog(schema);
@@ -69,7 +69,9 @@ public class AndroidMinerSchemaGenerator {
     	mobileLog.addStringProperty(DataManager.DEVICE_ID).notNull();
     	mobileLog.addDateProperty(DataManager.START_TIME).notNull();
     	mobileLog.addDateProperty(DataManager.END_TIME).notNull();
-    	mobileLog.addStringProperty(DataManager.ACTIVITY_NAME).notNull();     	
+    	mobileLog.addStringProperty(DataManager.ACTIVITY_NAME).notNull();     
+    	
+    	mobileLog.addBooleanProperty(DataManager.UPLOADED).notNull();
     }
     
     /*

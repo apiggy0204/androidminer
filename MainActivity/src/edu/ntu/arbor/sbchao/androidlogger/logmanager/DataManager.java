@@ -4,10 +4,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
-import android.net.NetworkInfo;
-import android.text.format.Time;
-import android.util.Log;
-
 public class DataManager {
 	
 	private ArrayList<String> mColumnNameList = new ArrayList<String>();
@@ -59,8 +55,14 @@ public class DataManager {
 	public static final String START_TIME = "startTime";
 	public static final String END_TIME = "endTime";
 	public static final String ACTIVITY_NAME = "activityName";
+	public static final String UPLOADED = "uploaded";
 	
-	public static DataManager getDefaultDataManager(){
+
+	public DataManager(){
+		
+	}
+	
+	public static DataManager getMobileDataManager(){
 		DataManager mgr = new DataManager();
 		mgr.reg(DEVICE_ID);		
 		mgr.reg(TIME);
@@ -89,7 +91,7 @@ public class DataManager {
 		return mgr;
 	}
 	
-	public static DataManager getDailyActivityDataManager(){
+	public static DataManager getActivityDataManager(){
 		DataManager mgr = new DataManager();
 		mgr.reg(DEVICE_ID);		
 		mgr.reg(START_TIME);
@@ -156,56 +158,4 @@ public class DataManager {
 		str += "\n";
 		return str;
 	}
-	
-	/*
-	private void registerColumnNames(){
-		reg(DEVICE_ID);		
-		reg(TIME);
-		reg(RECORD_FREQUENCY);
-		
-	    //Battery information
-		//reg(BAT_LEVEL);
-		//reg(BAT_SCALE);
-		//reg(BAT_VOLTAGE);
-		reg(BAT_STATUS);
-		//reg(BAT_PLUGGED);
-		reg(BAT_PERCENTAGE);
-		
-		//Location Information		
-		//reg(IS_GPS_ENABLED);
-		//reg(IS_NETWORK_ENABLED);
-		reg(GPS_PROVIDER_STATUS);
-		reg(NETWORK_PROVIDER_STATUS);
-	    reg(LOC_ACCURACY);
-	    reg(LOC_PROVIDER);
-	    //reg(LOC_ALTITUDE);
-	    reg(LOC_LATITUDE);
-	    reg(LOC_LONGITUDE);	        
-	    reg(LOC_SPEED);	    
-		
-	    //calling status	    
-		//reg(CALL_STATE);
-		//reg(INCOMING_NUMBER);
-		
-		//network status		
-		//reg(CONNECTIVITY);
-		//reg(ACTIVE_NETWORK_TYPE);
-		//reg(IS_MOBILE_AVAILABLE);
-		//reg(IS_MOBILE_CONNECTED);
-		//reg(IS_MOBILE_FAILOVER);
-		//reg(IS_MOBILE_ROAMING);
-		reg(MOBILE_STATE);		
-		//reg(IS_WIFI_AVAILABLE);		
-		//reg(IS_WIFI_CONNECTED);
-		//reg(IS_WIFI_FAILOVER);
-		//reg(IS_WIFI_ROAMING);
-		reg(WIFI_STATE);
-		
-		//reg(PROCESS_CURRENT_CLASS);
-		reg(PROCESS_CURRENT_PACKAGE);
-		//reg(AVAIL_MEM);			
-		reg(IS_LOW_MEMORY);
-		reg(IS_USING);
-	}*/
-	
 }

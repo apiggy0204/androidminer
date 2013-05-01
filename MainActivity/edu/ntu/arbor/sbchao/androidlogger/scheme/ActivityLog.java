@@ -15,6 +15,7 @@ public class ActivityLog {
     private java.util.Date endTime;
     /** Not-null value. */
     private String activityName;
+    private boolean uploaded;
 
     public ActivityLog() {
     }
@@ -23,12 +24,13 @@ public class ActivityLog {
         this.id = id;
     }
 
-    public ActivityLog(Long id, String deviceId, java.util.Date startTime, java.util.Date endTime, String activityName) {
+    public ActivityLog(Long id, String deviceId, java.util.Date startTime, java.util.Date endTime, String activityName, boolean uploaded) {
         this.id = id;
         this.deviceId = deviceId;
         this.startTime = startTime;
         this.endTime = endTime;
         this.activityName = activityName;
+        this.uploaded = uploaded;
     }
 
     public Long getId() {
@@ -77,6 +79,14 @@ public class ActivityLog {
     /** Not-null value; ensure this value is available before it is saved to the database. */
     public void setActivityName(String activityName) {
         this.activityName = activityName;
+    }
+
+    public boolean getUploaded() {
+        return uploaded;
+    }
+
+    public void setUploaded(boolean uploaded) {
+        this.uploaded = uploaded;
     }
 
 }

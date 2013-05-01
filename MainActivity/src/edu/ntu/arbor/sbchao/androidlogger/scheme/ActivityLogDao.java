@@ -28,6 +28,7 @@ public class ActivityLogDao extends AbstractDao<ActivityLog, Long> {
         public final static Property StartTime = new Property(2, java.util.Date.class, "startTime", false, "START_TIME");
         public final static Property EndTime = new Property(3, java.util.Date.class, "endTime", false, "END_TIME");
         public final static Property ActivityName = new Property(4, String.class, "activityName", false, "ACTIVITY_NAME");
+        public final static Property Uploaded = new Property(5, boolean.class, "uploaded", false, "UPLOADED");
     };
 
 
@@ -47,7 +48,8 @@ public class ActivityLogDao extends AbstractDao<ActivityLog, Long> {
                 "'DEVICE_ID' TEXT NOT NULL ," + // 1: deviceId
                 "'START_TIME' INTEGER NOT NULL ," + // 2: startTime
                 "'END_TIME' INTEGER NOT NULL ," + // 3: endTime
-                "'ACTIVITY_NAME' TEXT NOT NULL );"); // 4: activityName
+                "'ACTIVITY_NAME' TEXT NOT NULL ," + // 4: activityName
+                "'UPLOADED' INTEGER NOT NULL );"); // 5: uploaded
     }
 
     /** Drops the underlying database table. */
@@ -69,6 +71,7 @@ public class ActivityLogDao extends AbstractDao<ActivityLog, Long> {
         stmt.bindLong(3, entity.getStartTime().getTime());
         stmt.bindLong(4, entity.getEndTime().getTime());
         stmt.bindString(5, entity.getActivityName());
+        stmt.bindLong(6, entity.getUploaded() ? 1l: 0l);
     }
 
     /** @inheritdoc */
@@ -85,7 +88,8 @@ public class ActivityLogDao extends AbstractDao<ActivityLog, Long> {
             cursor.getString(offset + 1), // deviceId
             new java.util.Date(cursor.getLong(offset + 2)), // startTime
             new java.util.Date(cursor.getLong(offset + 3)), // endTime
-            cursor.getString(offset + 4) // activityName
+            cursor.getString(offset + 4), // activityName
+            cursor.getShort(offset + 5) != 0 // uploaded
         );
         return entity;
     }
@@ -98,6 +102,7 @@ public class ActivityLogDao extends AbstractDao<ActivityLog, Long> {
         entity.setStartTime(new java.util.Date(cursor.getLong(offset + 2)));
         entity.setEndTime(new java.util.Date(cursor.getLong(offset + 3)));
         entity.setActivityName(cursor.getString(offset + 4));
+        entity.setUploaded(cursor.getShort(offset + 5) != 0);
      }
     
     /** @inheritdoc */

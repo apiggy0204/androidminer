@@ -1,7 +1,6 @@
 package edu.ntu.arbor.sbchao.androidlogger;
 
 
-import java.io.File;
 import java.io.IOException;
 import java.util.Calendar;
 
@@ -10,9 +9,7 @@ import android.app.Dialog;
 import android.app.TimePickerDialog;
 import android.app.TimePickerDialog.OnTimeSetListener;
 import android.content.Context;
-import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
-import android.os.Environment;
 import android.telephony.TelephonyManager;
 import android.text.format.DateFormat;
 import android.util.Log;
@@ -24,14 +21,10 @@ import android.widget.TextView;
 import android.widget.TimePicker;
 import android.widget.Toast;
 import edu.ntu.arbor.sbchao.androidlogger.logmanager.DataManager;
+import edu.ntu.arbor.sbchao.androidlogger.logmanager.DatabaseManager;
 import edu.ntu.arbor.sbchao.androidlogger.logmanager.LogInfo;
 import edu.ntu.arbor.sbchao.androidlogger.logmanager.LogManager;
 import edu.ntu.arbor.sbchao.androidlogger.scheme.ActivityLog;
-import edu.ntu.arbor.sbchao.androidlogger.scheme.ActivityLogDao;
-import edu.ntu.arbor.sbchao.androidlogger.scheme.DaoMaster;
-import edu.ntu.arbor.sbchao.androidlogger.scheme.DaoSession;
-import edu.ntu.arbor.sbchao.androidlogger.scheme.MobileLogDao;
-import edu.ntu.arbor.sbchao.androidlogger.scheme.NetworkLogDao;
 
 public class DiaryInputActivity extends Activity {
 
@@ -58,10 +51,12 @@ public class DiaryInputActivity extends Activity {
 	private String deviceId;
 	
 	//Database
+	DatabaseManager mDbMgr;
+	/*
 	private SQLiteDatabase db;
 	private DaoMaster daoMaster;
 	private DaoSession daoSession;
-	private ActivityLogDao activityLogDao;
+	private ActivityLogDao activityLogDao;*/
 	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -71,39 +66,33 @@ public class DiaryInputActivity extends Activity {
 		
 		deviceId = ((TelephonyManager) this.getSystemService(Context.TELEPHONY_SERVICE)).getDeviceId();
 		
-		//LogManager.addLogInfo("http://140.112.42.22:7380/netdbmobileminer_test/activity.php", "activty", "AndroidLogger", "Unuploaded_activity", "Uploaded_activity", "activity", DataManager.getDailyActivityDataManager());
-		LogManager.addLogInfo("http://10.0.2.2/netdbmobileminer_test/activity.php", "activty", "AndroidLogger", "Unuploaded_activity", "Uploaded_activity", "activity", DataManager.getDailyActivityDataManager());
+		mDbMgr = new DatabaseManager(this);
+		
+		/*
+		LogManager.addLogInfo("http://140.112.42.22:7380/netdbmobileminer_test/activity.php", "activty", "AndroidLogger", "Unuploaded_activity", "Uploaded_activity", "activity", DataManager.getActivityDataManager());
+		//LogManager.addLogInfo("http://10.0.2.2/netdbmobileminer_test/activity.php", "activty", "AndroidLogger", "Unuploaded_activity", "Uploaded_activity", "activity", DataManager.getDailyActivityDataManager());
 		LogManager mLogMgr = new LogManager(this);	
 		mLogMgr.checkExternalStorage("activity");
-		mLogMgr.createNewLog("activity");
-		
-
+		mLogMgr.createNewLog("activity");*/
 	}
 	
 	@Override
 	protected void onResume() {
-		// TODO Auto-generated method stub
 		super.onResume();
-		File dbfile = new File(Environment.getExternalStorageDirectory().getPath(), "AndroidLogger/netdb.db");
-		db = SQLiteDatabase.openOrCreateDatabase(dbfile, null);		
-        ActivityLogDao.createTable(db, true);
-		
-        daoMaster = new DaoMaster(db);
-        daoSession = daoMaster.newSession();
-        activityLogDao = daoSession.getActivityLogDao();		
+		mDbMgr.openDb();
 	}	
 	
 	@Override
 	protected void onPause() {
-		// TODO Auto-generated method stub
 		super.onPause();
+		mDbMgr.closeDb();
+		/*
 		try {
 			LogManager.getLogInfoByName("activity").getLogFos().close();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		db.close();
+		db.close();*/
 	}
 
 	@Override
@@ -146,20 +135,7 @@ public class DiaryInputActivity extends Activity {
         }  
     };
     
-    /*
-	private static ViewGroup setTextColorWhite(ViewGroup v) {
-        int count = v.getChildCount();
-        for (int i = 0; i < count; i++) {
-            View c = v.getChildAt(i);
-            if(c instanceof ViewGroup){
-                setTextColorWhite((ViewGroup) c);
-            } else
-            if(c instanceof TextView){
-                ((TextView) c).setTextColor(Color.WHITE);
-            }
-        }
-        return v;
-    }*/
+
 
 	private void writeToLog(){
 			
@@ -196,7 +172,7 @@ public class DiaryInputActivity extends Activity {
 				logInfo.getLogFos().write(toWrite.getBytes());
 			}
 		} catch (IOException e) {
-			Log.e("writeToLogFile", "Cannot write into the file: " + logInfo.getLogFilename());			
+			Log.e("writeToLogFile", "Cannot write into the file: " + logInfo.getLogFilename() + e.getMessage());			
 		}		
 		Log.v("writeToLogFile", "The file is " + getFilesDir() + "/" + logInfo.getLogFilename());
 		Log.v("writeToLogFile", "Write Successfully!");
@@ -206,14 +182,14 @@ public class DiaryInputActivity extends Activity {
 	}
 	
 	public void writeToDatabase(){
-		//TODO
-		Log.v("Database", "Starting to insert new MobileLog");
+		//TODO test if this is good
+		Log.v("Database", "Starting to insert new ActivityLog");
 		
-		ActivityLog log = new ActivityLog(null, deviceId, mStartTime.getTime(), mEndTime.getTime(), mActivityName);
+		ActivityLog log = new ActivityLog(null, deviceId, mStartTime.getTime(), mEndTime.getTime(), mActivityName, false);
 		
-        activityLogDao.insert(log);
-        Log.v("Database", "Inserted new MobileLog, ID: " + log.getId());
-        Log.v("Database", "Size: " + String.valueOf((double)new File(db.getPath()).length()/1024.0) + "kB");
+		mDbMgr.getActivityLogDao().insert(log);
+        Log.v("Database", "Inserted new ActivityLog, ID: " + log.getId());
+        //Log.v("Database", "Size: " + String.valueOf((double)new File(db.getPath()).length()/1024.0) + "kB");
 	}
 	
     private void setUi(){
@@ -224,11 +200,7 @@ public class DiaryInputActivity extends Activity {
     	buttonCancel = (Button) findViewById(R.id.button_diary_cancel);
     	buttonQuit = (Button) findViewById(R.id.button_diary_quit);
     	textStartTime = (TextView) findViewById(R.id.text_diary_start_time);
-    	textEndTime = (TextView) findViewById(R.id.text_diary_end_time);    	    	
-    	//timePickerStart = (TimePicker) findViewById(R.id.timePickerStart);
-    	//timePickerEnd   = (TimePicker) findViewById(R.id.timePickerEnd);
-    	//setTextColorBlack(timePickerStart);
-    	//setTextColorBlack(timePickerEnd);    	
+    	textEndTime = (TextView) findViewById(R.id.text_diary_end_time);
     	
     	buttonSetStartTime.setOnClickListener(new OnClickListener(){
 			@Override
@@ -250,7 +222,6 @@ public class DiaryInputActivity extends Activity {
 				
 				mActivityName = editTextDoing.getText().toString();
 				if(mActivityName == null || mActivityName.equals("") || mStartTime == null || mEndTime == null){
-					//TODO
 					Toast.makeText(DiaryInputActivity.this, "欄位不得為空!", Toast.LENGTH_LONG).show();
 				} 
 				else if( !mStartTime.before(mEndTime) ){
@@ -259,6 +230,7 @@ public class DiaryInputActivity extends Activity {
 				else{					
 					writeToLog();
 					Toast.makeText(DiaryInputActivity.this, "已儲存!", Toast.LENGTH_LONG).show();
+					finish();
 				}
 				
 				/*isLogging = true;
@@ -291,4 +263,18 @@ public class DiaryInputActivity extends Activity {
     	mEndTime   = null;
     }
     
+    /*
+	private static ViewGroup setTextColorWhite(ViewGroup v) {
+        int count = v.getChildCount();
+        for (int i = 0; i < count; i++) {
+            View c = v.getChildAt(i);
+            if(c instanceof ViewGroup){
+                setTextColorWhite((ViewGroup) c);
+            } else
+            if(c instanceof TextView){
+                ((TextView) c).setTextColor(Color.WHITE);
+            }
+        }
+        return v;
+    }*/
 }
