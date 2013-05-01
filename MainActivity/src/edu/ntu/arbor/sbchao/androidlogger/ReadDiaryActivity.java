@@ -7,28 +7,29 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import android.app.AlertDialog;
-import android.app.ListActivity;
 import android.app.ProgressDialog;
-import android.content.DialogInterface;
+import android.graphics.Color;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.support.v4.app.FragmentActivity;
 import android.util.Log;
-import android.view.View;
-import android.widget.ListView;
 import android.widget.SimpleAdapter;
+
+import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.PolylineOptions;
+
 import de.greenrobot.dao.QueryBuilder;
-import edu.ntu.arbor.sbchao.androidlogger.logmanager.DataManager;
 import edu.ntu.arbor.sbchao.androidlogger.logmanager.DatabaseManager;
 import edu.ntu.arbor.sbchao.androidlogger.scheme.ActivityLog;
 import edu.ntu.arbor.sbchao.androidlogger.scheme.ActivityLogDao;
 import edu.ntu.arbor.sbchao.androidlogger.scheme.MobileLog;
 import edu.ntu.arbor.sbchao.androidlogger.scheme.MobileLogDao;
 
-
-public class ReadDiaryActivity extends ListActivity {
+public class ReadDiaryActivity extends FragmentActivity {
 	
 	private static final int LOAD_DIARY = 0x0000;
 	
@@ -42,6 +43,8 @@ public class ReadDiaryActivity extends ListActivity {
 	//Ui
 	public SimpleAdapter adapter;
 	private ProgressDialog mDialog;
+	private SupportMapFragment mMapFragment;
+	private GoogleMap mGoogleMap;
 	
     private Handler mHandler = new Handler() {
 		@Override
@@ -62,7 +65,10 @@ public class ReadDiaryActivity extends ListActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);        
-        addUiListeners();
+//        addUiListeners();
+        setContentView(R.layout.activity_read_diary);
+        mMapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
+        mGoogleMap = mMapFragment.getMap();
         mDbMgr = new DatabaseManager(this);
     }
     
@@ -87,22 +93,22 @@ public class ReadDiaryActivity extends ListActivity {
         mDbMgr.closeDb();
     }
     
-    protected void onListItemClick(ListView l, View v, final int position, long id) {  
-        super.onListItemClick(l, v, position, id);
-        //TODO
-        AlertDialog.Builder adb=new AlertDialog.Builder(ReadDiaryActivity.this);
-        adb.setTitle("Delete?");
-        adb.setMessage("Are you sure you want to delete it?");
-        
-        adb.setNegativeButton("Cancel", null);
-        adb.setPositiveButton("Ok", new AlertDialog.OnClickListener() {
-            public void onClick(DialogInterface dialog, int which) {
-            	mDbMgr.getActivityLogDao().delete(mLogs.remove(position));
-                mListItemMaps.remove(position);
-                adapter.notifyDataSetChanged();
-            }});
-        adb.show();
-    }
+//    protected void onListItemClick(ListView l, View v, final int position, long id) {  
+//        super.onListItemClick(l, v, position, id);
+//        //TODO
+//        AlertDialog.Builder adb=new AlertDialog.Builder(ReadDiaryActivity.this);
+//        adb.setTitle("Delete?");
+//        adb.setMessage("Are you sure you want to delete it?");
+//        
+//        adb.setNegativeButton("Cancel", null);
+//        adb.setPositiveButton("Ok", new AlertDialog.OnClickListener() {
+//            public void onClick(DialogInterface dialog, int which) {
+//            	mDbMgr.getActivityLogDao().delete(mLogs.remove(position));
+//                mListItemMaps.remove(position);
+//                adapter.notifyDataSetChanged();
+//            }});
+//        adb.show();
+//    }
 
     private Runnable queryDiaryThread = new Runnable(){
 		@Override
@@ -125,6 +131,8 @@ public class ReadDiaryActivity extends ListActivity {
 	
     //List today's activity
     private class QueryDiaryTask extends AsyncTask<Void, Void, Void>{
+    	private PolylineOptions lineOptions = new PolylineOptions();
+    	
 		@Override
 		protected Void doInBackground(Void... arg0) {
 			//TODO query the database and 		
@@ -145,8 +153,12 @@ public class ReadDiaryActivity extends ListActivity {
 	        	List<MobileLog> mobileLogs = mqb.list();
 	        	for(MobileLog mlog : mobileLogs){
 	        		//TODO location information
-	        		//Log.i("doInBackground", "Location: (" + String.valueOf(mlog.getLat()) + ", " + String.valueOf(mlog.getLon()) + ")");	        		
+	        		Log.i("doInBackground", "Location: (" + String.valueOf(mlog.getLat()) + ", " + String.valueOf(mlog.getLon()) + ")");
+//	        		LatLng position = new LatLng(Double.valueOf(mlog.getLat()), Double.valueOf(mlog.getLon()));
+//	        		lineOptions.add(position);
 	        	}
+	        	lineOptions.width(2);
+                lineOptions.color(Color.RED);
 	        	
 	        	//Add to the list view
 	        	HashMap<String, String> map = new HashMap<String, String>();  
@@ -162,15 +174,16 @@ public class ReadDiaryActivity extends ListActivity {
 		
     	@Override
     	protected void onPostExecute(Void result){
+    		//mGoogleMap.addPolyline(lineOptions);
     		
-    		//TODO Update UI after doInBackground() finishes
-	        adapter = new SimpleAdapter(ReadDiaryActivity.this, mListItemMaps,  
-	                // SDK 库中提供的一个包含两个 TextView 的layout  
-	        		android.R.layout.simple_list_item_2,   
-	                new String[] { "name", "desc" }, // maps 中的两个 key  
-	                new int[] { android.R.id.text1, android.R.id.text2 }// 两个TextView的 id   
-	        );  
-	        ReadDiaryActivity.this.setListAdapter(adapter);
+//    		//TODO Update UI after doInBackground() finishes
+//	        adapter = new SimpleAdapter(ReadDiaryActivity.this, mListItemMaps,  
+//	                // SDK 库中提供的一个包含两个 TextView 的layout  
+//	        		android.R.layout.simple_list_item_2,   
+//	                new String[] { "name", "desc" }, // maps 中的两个 key  
+//	                new int[] { android.R.id.text1, android.R.id.text2 }// 两个TextView的 id   
+//	        );  
+//	        ReadDiaryActivity.this.setListAdapter(adapter);
 	        
     		//Close the "loading" dialog
 	        if(!displayed){

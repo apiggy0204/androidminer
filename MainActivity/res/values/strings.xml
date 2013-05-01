@@ -1,23 +1,25 @@
+<resources>
 
-    <resources>
-        <string name="app_name">Netdb Logger</string>
-        <string name="menu_settings">設定</string>
-        <string name="status_app">APP1</string>
-        <string name="main_mobile_status">手機狀態</string>
-        <string name="main_network_traffic">網路流量</string>
-        <string name="main_daily_app_usage">每日APP用量</string>
-        <string name="main_hourly_app_usage">每小時APP用量</string>
-        <string name="main_settings">設定</string>
-        <string name="main_contact">聯絡作者</string>
-        <string name="diary_label_whatrudoing">在做什麼呢?</string>
-        <string name="diary_label_starttime">開始時間</string>
-        <string name="diary_label_endtime">結束時間</string>
-        <string name="diary_button_save">儲存</string>
-        <string name="diary_button_cancel">清除</string>
-        <string name="choose_start_time">選擇開始時間</string>
-        <string name="choose_end_time">選擇結束時間</string>
-        <string name="diary_button_quit">結束</string>
-        <string name="main_diary_input">寫日記</string>
-        <string name="main_read_diary">讀日記</string>
-        <string name="main_map">讀軌跡</string>
-    </resources>
+	<string name="app_name">Netdb Logger</string>
+	<string name="menu_settings">設定</string>
+	<string name="status_app">APP1</string>
+	<string name="main_mobile_status">手機狀態</string>
+	<string name="main_network_traffic">網路流量</string>
+	<string name="main_daily_app_usage">每日APP用量</string>
+	<string name="main_hourly_app_usage">每小時APP用量</string>
+	<string name="main_settings">設定</string>
+	<string name="main_contact">聯絡作者</string>
+	<string name="diary_label_whatrudoing">在做什麼呢?</string>
+	<string name="diary_label_starttime">開始時間</string>
+	<string name="diary_label_endtime">結束時間</string>
+	<string name="diary_button_save">儲存</string>
+	<string name="diary_button_cancel">清除</string>
+	<string name="choose_start_time">選擇開始時間</string>
+	<string name="choose_end_time">選擇結束時間</string>
+	<string name="diary_button_quit">結束</string>
+	<string name="main_diary_input">寫日記</string>
+	<string name="main_read_diary">讀日記</string>
+	<string name="main_map">讀軌跡</string>
+	<string name="google_api_key">AIzaSyCtFWN7ea8kj3RiBQBjPjmN3yTCvxWuUJ8</string>
+
+</resources>

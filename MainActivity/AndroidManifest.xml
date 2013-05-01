@@ -1,59 +1,77 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="edu.ntu.arbor.sbchao.androidlogger"
-    android:versionCode="1"
-    android:versionName="1.0" >
+	package="edu.ntu.arbor.sbchao.androidlogger"
+	android:versionCode="1"
+	android:versionName="1.0" >
 
-    <uses-sdk
-        android:minSdkVersion="8"
-        android:targetSdkVersion="17" />
+	<uses-feature
+		android:glEsVersion="0x00020000"
+		android:required="true" />
 
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_GPS" />
-    <uses-permission android:name="android.permission.ACCESS_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
-    <uses-permission android:name="android.permission.GET_TASKS" /> 
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" /> 
-    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_SERVICE" />
-      
-    <application
-        android:allowBackup="true"
-        android:icon="@drawable/netdbfans"
-        android:label="@string/app_name">
+	<uses-sdk
+		android:minSdkVersion="8"
+		android:targetSdkVersion="15" />
 
-        <activity
-            android:name="edu.ntu.arbor.sbchao.androidlogger.MainDashboardActivity"
-            android:label="@string/app_name" >
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-        
-		<activity android:name="edu.ntu.arbor.sbchao.androidlogger.DiaryInputActivity"></activity>
-		<activity android:name="edu.ntu.arbor.sbchao.androidlogger.ReadDiaryActivity"></activity>
-		<activity android:name="edu.ntu.arbor.sbchao.androidlogger.SettingsActivity"></activity>
-		<activity android:name="edu.ntu.arbor.sbchao.androidlogger.MobileStatusActivity"></activity>
-		<activity android:name="edu.ntu.arbor.sbchao.androidlogger.NetworkTrafficActivity"></activity>
-		<activity android:name="edu.ntu.arbor.sbchao.androidlogger.AppUsageActivity"></activity>
-		<activity android:name="org.achartengine.GraphicalActivity"></activity>
-        
-        <service android:name=".LoggingService" />
-        <service android:name="edu.ntu.arbor.sbchao.androidlogger.logmanager.UploadingService" />
-        
-        <receiver android:name="edu.ntu.arbor.sbchao.androidlogger.AutoStartServiceReceiver">
+	<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+	<uses-permission android:name="android.permission.ACCESS_GPS" />
+	<uses-permission android:name="android.permission.ACCESS_LOCATION" />
+	<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+	<uses-permission android:name="android.permission.INTERNET" />
+	<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+	<uses-permission android:name="android.permission.READ_PHONE_STATE" />
+	<uses-permission android:name="android.permission.GET_TASKS" />
+	<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+	<uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+	<uses-permission android:name="android.permission.ACCESS_BACKGROUND_SERVICE" />
+	<uses-permission android:name="com.google.android.providers.gsf.permission.READ_GSERVICES" />
+	<uses-permission android:name="edu.ntu.arbor.sbchao.androidlogger.permission.MAPS_RECEIVE" />
+
+	<permission
+		android:name="edu.ntu.arbor.sbchao.androidlogger.permission.MAPS_RECEIVE"
+		android:protectionLevel="signature" >
+	</permission>
+
+	<application
+		android:allowBackup="true"
+		android:icon="@drawable/netdbfans"
+		android:label="@string/app_name" >
+		<activity
+			android:name="edu.ntu.arbor.sbchao.androidlogger.MainDashboardActivity"
+			android:label="@string/app_name" >
 			<intent-filter>
-			    <action android:name="android.intent.action.BOOT_COMPLETED" />		
-			    <action android:name="android.intent.action.USER_PRESENT" />		
+				<action android:name="android.intent.action.MAIN" />
+
+				<category android:name="android.intent.category.LAUNCHER" />
+			</intent-filter>
+		</activity>
+		<activity android:name="edu.ntu.arbor.sbchao.androidlogger.DiaryInputActivity" >
+		</activity>
+		<activity android:name="edu.ntu.arbor.sbchao.androidlogger.ReadDiaryActivity" >
+		</activity>
+		<activity android:name="edu.ntu.arbor.sbchao.androidlogger.SettingsActivity" >
+		</activity>
+		<activity android:name="edu.ntu.arbor.sbchao.androidlogger.MobileStatusActivity" >
+		</activity>
+		<activity android:name="edu.ntu.arbor.sbchao.androidlogger.NetworkTrafficActivity" >
+		</activity>
+		<activity android:name="edu.ntu.arbor.sbchao.androidlogger.AppUsageActivity" >
+		</activity>
+		<activity android:name="org.achartengine.GraphicalActivity" >
+		</activity>
+
+		<meta-data
+			android:name="com.google.android.maps.v2.API_KEY"
+			android:value="@string/google_api_key" />
+
+		<service android:name=".LoggingService" />
+		<service android:name="edu.ntu.arbor.sbchao.androidlogger.logmanager.UploadingService" />
+
+		<receiver android:name="edu.ntu.arbor.sbchao.androidlogger.AutoStartServiceReceiver" >
+			<intent-filter>
+				<action android:name="android.intent.action.BOOT_COMPLETED" />
+				<action android:name="android.intent.action.USER_PRESENT" />
 			</intent-filter>
 		</receiver>
-		
-        
-        
-    </application>
+	</application>
 
 </manifest>
