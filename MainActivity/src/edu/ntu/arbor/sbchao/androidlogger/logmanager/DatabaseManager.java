@@ -20,14 +20,13 @@ import org.apache.http.protocol.HTTP;
 
 import android.content.Context;
 import android.database.sqlite.SQLiteDatabase;
-import android.database.sqlite.SQLiteDatabase.CursorFactory;
-import android.database.sqlite.SQLiteOpenHelper;
 import android.os.Environment;
 import android.util.Log;
 import de.greenrobot.dao.QueryBuilder;
 import edu.ntu.arbor.sbchao.androidlogger.scheme.ActivityLog;
 import edu.ntu.arbor.sbchao.androidlogger.scheme.ActivityLogDao;
 import edu.ntu.arbor.sbchao.androidlogger.scheme.DaoMaster;
+import edu.ntu.arbor.sbchao.androidlogger.scheme.DaoMaster.DevOpenHelper;
 import edu.ntu.arbor.sbchao.androidlogger.scheme.DaoSession;
 import edu.ntu.arbor.sbchao.androidlogger.scheme.MobileLogDao;
 import edu.ntu.arbor.sbchao.androidlogger.scheme.NetworkLogDao;
@@ -81,7 +80,9 @@ public class DatabaseManager {
 	public void openDb(){
         //Set up local databases
 		File dbFile = new File(Environment.getExternalStorageDirectory().getPath(), "AndroidLogger/netdb.db");
-		db = new DaoMaster.DevOpenHelper(context, dbFile.getPath(), null).getWritableDatabase();		 
+		DevOpenHelper helper = new DaoMaster.DevOpenHelper(context, dbFile.getPath(), null);
+		db = helper.getWritableDatabase();		 
+		Log.i("DatabaseManager", "databaseVersion: " + String.valueOf(db.getVersion()));
 		/*db = SQLiteDatabase.openOrCreateDatabase(dbfile, null);			
 		ActivityLogDao.createTable(db, true);
 		MobileLogDao.createTable(db, true);
@@ -89,6 +90,7 @@ public class DatabaseManager {
         
         daoMaster = new DaoMaster(db);
         daoSession = daoMaster.newSession();
+        networkLogDao = daoSession.getNetworkLogDao();
         mobileLogDao = daoSession.getMobileLogDao();
         activityLogDao = daoSession.getActivityLogDao();   
     }

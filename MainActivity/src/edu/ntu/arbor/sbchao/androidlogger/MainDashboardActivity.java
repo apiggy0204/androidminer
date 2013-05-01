@@ -18,6 +18,8 @@ import android.widget.TextView;
 
 import com.google.android.apps.iosched.ui.widget.DashboardLayout;
 
+import edu.ntu.arbor.sbchao.androidlogger.logmanager.DatabaseManager;
+
 public class MainDashboardActivity extends Activity {
 	
 	@Override
@@ -25,7 +27,6 @@ public class MainDashboardActivity extends Activity {
 		super.onCreate(savedInstanceState);
         //setContentView(R.layout.activity_main);
 		setUi();
-
 		startService(new Intent(this, LoggingService.class));
 		
 	}

@@ -10,7 +10,7 @@ import edu.ntu.arbor.sbchao.androidlogger.logmanager.DataManager;
 public class AndroidMinerSchemaGenerator {
 
 	public static void main(String[] args) throws Exception {
-        Schema schema = new Schema(6, "edu.ntu.arbor.sbchao.androidlogger.scheme");
+        Schema schema = new Schema(7, "edu.ntu.arbor.sbchao.androidlogger.scheme");
 
         addMobileLog(schema);
         addNetworkLog(schema);
