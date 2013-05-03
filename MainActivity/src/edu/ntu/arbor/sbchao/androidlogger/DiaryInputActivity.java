@@ -77,6 +77,12 @@ public class DiaryInputActivity extends Activity {
 	}
 	
 	@Override
+	protected void onSaveInstanceState(Bundle outState) {
+		// TODO Auto-generated method stub
+		super.onSaveInstanceState(outState);
+	}
+	
+	@Override
 	protected void onResume() {
 		super.onResume();
 		mDbMgr.openDb();
@@ -94,7 +100,7 @@ public class DiaryInputActivity extends Activity {
 		}
 		db.close();*/
 	}
-
+	
 	@Override
 	@Deprecated
 	protected Dialog onCreateDialog(int id) {
