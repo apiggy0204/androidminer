@@ -6,10 +6,17 @@ import java.util.Calendar;
 
 import android.app.Activity;
 import android.app.Dialog;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.TimePickerDialog;
 import android.app.TimePickerDialog.OnTimeSetListener;
 import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.SharedPreferences.Editor;
 import android.os.Bundle;
+import android.support.v4.app.NotificationCompat;
+import android.support.v4.app.TaskStackBuilder;
 import android.telephony.TelephonyManager;
 import android.text.format.DateFormat;
 import android.util.Log;
@@ -33,6 +40,10 @@ public class DiaryInputActivity extends Activity {
 	//public Handler mHandler = new ThreadHandler();
 	public static final String DATETIME_FORMAT = "yyyy-MM-dd aa hh:mm:ss";
 	
+	public static final String PREF_ACTIVITY_NAME = "prefActivityName";
+	public static final String PREF_START_TIME = "prefStartTime";
+	public static final String PREF_END_TIME = "prefEndTime";
+	
 	private static final int DIALOG_SET_START_TIME = 0;
 	private static final int DIALOG_SET_END_TIME = 1;
 	
@@ -44,6 +55,10 @@ public class DiaryInputActivity extends Activity {
 	private Button buttonSetEndTime;
 	private EditText editTextDoing;
 	private Button buttonQuit;
+	private Button buttonStartNow;
+	private Button buttonEndNow;
+	
+	private NotificationManager mNotificationManager;
 	
 	private Calendar mStartTime = null;
 	private Calendar mEndTime = null;
@@ -52,11 +67,6 @@ public class DiaryInputActivity extends Activity {
 	
 	//Database
 	DatabaseManager mDbMgr;
-	/*
-	private SQLiteDatabase db;
-	private DaoMaster daoMaster;
-	private DaoSession daoSession;
-	private ActivityLogDao activityLogDao;*/
 	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -64,41 +74,71 @@ public class DiaryInputActivity extends Activity {
 		setContentView(R.layout.activity_diary);	
 		setUi();
 		
+		if(savedInstanceState != null){
+			mActivityName = (String) savedInstanceState.getSerializable(PREF_ACTIVITY_NAME);
+			mStartTime = (Calendar) savedInstanceState.getSerializable(PREF_START_TIME);
+			mEndTime = (Calendar) savedInstanceState.getSerializable(PREF_END_TIME);
+		}
+		
 		deviceId = ((TelephonyManager) this.getSystemService(Context.TELEPHONY_SERVICE)).getDeviceId();
-		
+		mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
 		mDbMgr = new DatabaseManager(this);
-		
-		/*
-		LogManager.addLogInfo("http://140.112.42.22:7380/netdbmobileminer_test/activity.php", "activty", "AndroidLogger", "Unuploaded_activity", "Uploaded_activity", "activity", DataManager.getActivityDataManager());
-		//LogManager.addLogInfo("http://10.0.2.2/netdbmobileminer_test/activity.php", "activty", "AndroidLogger", "Unuploaded_activity", "Uploaded_activity", "activity", DataManager.getDailyActivityDataManager());
-		LogManager mLogMgr = new LogManager(this);	
-		mLogMgr.checkExternalStorage("activity");
-		mLogMgr.createNewLog("activity");*/
 	}
 	
 	@Override
 	protected void onSaveInstanceState(Bundle outState) {
 		// TODO Auto-generated method stub
 		super.onSaveInstanceState(outState);
+		outState.putSerializable(PREF_ACTIVITY_NAME, mActivityName);
+		outState.putSerializable(PREF_START_TIME, mStartTime);
+		outState.putSerializable(PREF_END_TIME, mEndTime);
 	}
 	
 	@Override
 	protected void onResume() {
 		super.onResume();
 		mDbMgr.openDb();
+		
+		SharedPreferences settings = getSharedPreferences(PREF_ACTIVITY_NAME, 0);
+		
+		mActivityName = settings.getString(PREF_ACTIVITY_NAME, "");
+		editTextDoing.setText(mActivityName);
+		
+		Long startTimeInMillis = settings.getLong(PREF_START_TIME, -1);
+		if(startTimeInMillis == -1) mStartTime = null;
+		else {
+			Calendar c = Calendar.getInstance();
+			c.setTimeInMillis(startTimeInMillis);
+			mStartTime = c;
+			this.textStartTime.setText(DateFormat.format(DATETIME_FORMAT, c.getTime()));
+		}
+		
+		Long endTimeInMillis = settings.getLong(PREF_END_TIME, -1);
+		if(endTimeInMillis == -1) mEndTime = null;
+		else {
+			Calendar c = Calendar.getInstance();
+			c.setTimeInMillis(endTimeInMillis);
+			mEndTime = c;
+			this.textEndTime.setText(DateFormat.format(DATETIME_FORMAT, c.getTime()));
+		}		
+		
+		mNotificationManager.cancelAll();
 	}	
 	
 	@Override
 	protected void onPause() {
 		super.onPause();
 		mDbMgr.closeDb();
-		/*
-		try {
-			LogManager.getLogInfoByName("activity").getLogFos().close();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		db.close();*/
+		
+		SharedPreferences settings = getSharedPreferences(PREF_ACTIVITY_NAME, 0);
+	    Editor editor = settings.edit();
+	    editor.clear();
+	    mActivityName = editTextDoing.getText().toString();
+	    if(mActivityName != null) editor.putString(PREF_ACTIVITY_NAME, mActivityName);
+	    if(mStartTime != null) editor.putLong(PREF_START_TIME, mStartTime.getTimeInMillis());
+	    if(mEndTime != null) editor.putLong(PREF_END_TIME, mEndTime.getTimeInMillis());
+	    editor.commit();
+	    
 	}
 	
 	@Override
@@ -140,8 +180,6 @@ public class DiaryInputActivity extends Activity {
             textEndTime.setText(DateFormat.format(DATETIME_FORMAT, c.getTime()));
         }  
     };
-    
-
 
 	private void writeToLog(){
 			
@@ -205,8 +243,33 @@ public class DiaryInputActivity extends Activity {
     	buttonSave = (Button) findViewById(R.id.button_diary_save);
     	buttonCancel = (Button) findViewById(R.id.button_diary_cancel);
     	buttonQuit = (Button) findViewById(R.id.button_diary_quit);
+    	buttonStartNow = (Button) findViewById(R.id.button_diary_start_now);
+    	buttonEndNow = (Button) findViewById(R.id.button_diary_end_now);
     	textStartTime = (TextView) findViewById(R.id.text_diary_start_time);
     	textEndTime = (TextView) findViewById(R.id.text_diary_end_time);
+    	
+    	buttonStartNow.setOnClickListener(new OnClickListener(){
+			@Override
+			public void onClick(View arg0) {
+				// TODO Auto-generated method stub
+				Calendar c = Calendar.getInstance();     
+	            mStartTime = c;
+	            textStartTime.setText(DateFormat.format(DATETIME_FORMAT, c.getTime()));
+	            
+	            sendNotification();
+	            Toast.makeText(DiaryInputActivity.this, "已開始記錄!", Toast.LENGTH_LONG).show();
+	            finish();
+			}
+		});
+    	
+    	buttonEndNow.setOnClickListener(new OnClickListener(){
+			@Override
+			public void onClick(View arg0) {
+				Calendar c = Calendar.getInstance();     
+	            mEndTime = c;
+	            textEndTime.setText(DateFormat.format(DATETIME_FORMAT, c.getTime()));
+			}
+		});  
     	
     	buttonSetStartTime.setOnClickListener(new OnClickListener(){
 			@Override
@@ -236,20 +299,15 @@ public class DiaryInputActivity extends Activity {
 				else{					
 					writeToLog();
 					Toast.makeText(DiaryInputActivity.this, "已儲存!", Toast.LENGTH_LONG).show();
+					clearForm();
 					finish();
 				}
-				
-				/*isLogging = true;
-				textStartTime.setText(DateFormat.format(DATETIME_FORMAT, new Date()));
-				textEndTime.setText(DateFormat.format(DATETIME_FORMAT, new Date()));
-				mHandler.postDelayed(updateInfoThread, UPDATE_FREQUENCY);*/
 		}});
     	
     	buttonCancel.setOnClickListener(new OnClickListener(){
 			@Override
 			public void onClick(View v) {
-				clearForm();
-				//isLogging = false;				
+				clearForm();			
 		}});
     	
     	buttonQuit.setOnClickListener(new OnClickListener(){
@@ -267,6 +325,37 @@ public class DiaryInputActivity extends Activity {
     	textEndTime.setText("");
     	mStartTime = null;
     	mEndTime   = null;
+    	mActivityName = "";
+    }
+    
+    private void sendNotification(){
+    	mActivityName = editTextDoing.getText().toString();
+    	NotificationCompat.Builder mBuilder =
+    	        new NotificationCompat.Builder(this)
+    	        .setSmallIcon(R.drawable.netdbfans)
+    	        .setContentTitle("目前活動: " + mActivityName)
+    	        .setContentText("點擊以記錄目前活動");
+    	// Creates an explicit intent for an Activity in your app
+    	Intent resultIntent = new Intent(this, DiaryInputActivity.class);
+
+    	// The stack builder object will contain an artificial back stack for the
+    	// started Activity.
+    	// This ensures that navigating backward from the Activity leads out of
+    	// your application to the Home screen.
+    	TaskStackBuilder stackBuilder = TaskStackBuilder.create(this);
+    	// Adds the back stack for the Intent (but not the Intent itself)
+    	stackBuilder.addParentStack(DiaryInputActivity.class);
+    	// Adds the Intent that starts the Activity to the top of the stack
+    	stackBuilder.addNextIntent(resultIntent);
+    	PendingIntent resultPendingIntent =
+    	        stackBuilder.getPendingIntent(
+    	            0,
+    	            PendingIntent.FLAG_UPDATE_CURRENT
+    	        );
+    	mBuilder.setContentIntent(resultPendingIntent);
+    	
+    	// mId allows you to update the notification later on.
+    	mNotificationManager.notify(0, mBuilder.build());
     }
     
     /*

@@ -30,6 +30,13 @@
             android:textAppearance="?android:attr/textAppearanceLarge" />
 
         <Button
+            android:id="@+id/button_diary_start_now"
+            style="?android:attr/buttonStyleSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/diary_button_start_now" />
+
+        <Button
             android:id="@+id/button_diary_choose_start_time"
             style="?android:attr/buttonStyleSmall"
             android:layout_width="wrap_content"
@@ -60,6 +67,13 @@
             android:layout_height="wrap_content"
             android:text="@string/diary_label_endtime"
             android:textAppearance="?android:attr/textAppearanceLarge" />
+
+        <Button
+            android:id="@+id/button_diary_end_now"
+            style="?android:attr/buttonStyleSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/diary_button_end_now" />
 
         <Button
             android:id="@+id/button_diary_choose_end_time"
