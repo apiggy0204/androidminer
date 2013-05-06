@@ -10,11 +10,14 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.TimePickerDialog;
 import android.app.TimePickerDialog.OnTimeSetListener;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
 import android.os.Bundle;
+import android.os.IBinder;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.TaskStackBuilder;
 import android.telephony.TelephonyManager;
@@ -27,6 +30,7 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.TimePicker;
 import android.widget.Toast;
+import edu.ntu.arbor.sbchao.androidlogger.LoggingService.LocalBinder;
 import edu.ntu.arbor.sbchao.androidlogger.logmanager.DataManager;
 import edu.ntu.arbor.sbchao.androidlogger.logmanager.DatabaseManager;
 import edu.ntu.arbor.sbchao.androidlogger.logmanager.LogInfo;
@@ -36,7 +40,7 @@ import edu.ntu.arbor.sbchao.androidlogger.scheme.ActivityLog;
 public class DiaryInputActivity extends Activity {
 
 	public static final int UPDATE_INFO = 0;
-	public static final long UPDATE_FREQUENCY = 1000;
+	//public static final long UPDATE_FREQUENCY = 1000;
 	//public Handler mHandler = new ThreadHandler();
 	public static final String DATETIME_FORMAT = "yyyy-MM-dd aa hh:mm:ss";
 	
@@ -68,6 +72,24 @@ public class DiaryInputActivity extends Activity {
 	//Database
 	DatabaseManager mDbMgr;
 	
+	//Service
+	private boolean mBound = false;	
+	private LoggingService mService = null;	
+	private ServiceConnection mConnection = new ServiceConnection(){
+		@Override
+		public void onServiceConnected(ComponentName className, IBinder service) {
+			LocalBinder binder = (LocalBinder) service;
+			mService = binder.getService();
+			mBound = true;
+			Log.i("onServiceConnected", "Service has been bound!");
+		}
+		@Override
+		public void onServiceDisconnected(ComponentName arg0) {
+			mBound = false;
+			Log.i("onServiceDisconnected", "Service has been unbound");
+		}
+	};
+	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -82,7 +104,7 @@ public class DiaryInputActivity extends Activity {
 		
 		deviceId = ((TelephonyManager) this.getSystemService(Context.TELEPHONY_SERVICE)).getDeviceId();
 		mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-		mDbMgr = new DatabaseManager(this);
+		mDbMgr = new DatabaseManager(this);			
 	}
 	
 	@Override
@@ -93,6 +115,23 @@ public class DiaryInputActivity extends Activity {
 		outState.putSerializable(PREF_START_TIME, mStartTime);
 		outState.putSerializable(PREF_END_TIME, mEndTime);
 	}
+	
+	@Override
+	protected void onStart(){
+		super.onStart();
+		Intent intent = new Intent(DiaryInputActivity.this, LoggingService.class);
+        bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
+	}
+	
+	@Override
+    protected void onStop() {
+        super.onStop();
+        // Unbound from the service
+        if (mBound) {
+            unbindService(mConnection);
+            mBound = false;
+        }
+    }
 	
 	@Override
 	protected void onResume() {
@@ -299,7 +338,8 @@ public class DiaryInputActivity extends Activity {
 				else{					
 					writeToLog();
 					Toast.makeText(DiaryInputActivity.this, "已儲存!", Toast.LENGTH_LONG).show();
-					clearForm();
+					clearForm();					
+					mService.lastSavedActivityTime = Calendar.getInstance(); 
 					finish();
 				}
 		}});

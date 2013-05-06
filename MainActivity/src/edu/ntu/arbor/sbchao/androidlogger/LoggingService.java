@@ -1,8 +1,8 @@
 package edu.ntu.arbor.sbchao.androidlogger;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
@@ -10,6 +10,7 @@ import java.util.List;
 import android.app.ActivityManager;
 import android.app.ActivityManager.RunningTaskInfo;
 import android.app.AlarmManager;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
@@ -31,14 +32,11 @@ import android.net.NetworkInfo;
 import android.os.BatteryManager;
 import android.os.Binder;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.HandlerThread;
 import android.os.IBinder;
-import android.os.Looper;
-import android.os.Message;
-import android.os.Process;
 import android.os.SystemClock;
 import android.preference.PreferenceManager;
+import android.support.v4.app.NotificationCompat;
+import android.support.v4.app.TaskStackBuilder;
 import android.telephony.TelephonyManager;
 import android.text.format.Time;
 import android.util.Log;
@@ -86,6 +84,8 @@ public class LoggingService extends Service {
         
     //For logging and uploading
     private static LogManager mLogMgr;
+    
+    Calendar lastSavedActivityTime = null;
     
     //Sensors
 	String deviceId;
@@ -291,6 +291,7 @@ public class LoggingService extends Service {
 					updateNetworkInfo();		
 					updateProcessInfo();
 					updateNetworkTrafficInfo();
+					sendNotification();
 					  
 					if(isLoggingAllowed){
 						uploadLogs();
@@ -319,6 +320,8 @@ public class LoggingService extends Service {
 				Log.i("onSharedPreferenceChanged", "Allow logging in service has been set to " + isLoggingAllowed);
 			}
 	}};
+	private NotificationManager mNotificationManager;
+	private long NOTIFICATION_PERIOD = 60; //period of notifying user to input daily activities (in minutes)
 	
 	//Write sensor data into log files
 	//When isServiceRunning == true, continue to log indefinitely with postDelayed() method.
@@ -385,6 +388,8 @@ public class LoggingService extends Service {
 			accelerometerPresent = false;
 		}
 		
+		mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+		
 		/*
 		sensorList = mSensorMgr.getSensorList(Sensor.TYPE_LINEAR_ACCELERATION);
 		if(sensorList.size() > 0){			
@@ -393,6 +398,40 @@ public class LoggingService extends Service {
 
 	}
 	
+	protected void sendNotification() {		
+		Calendar now = Calendar.getInstance();
+		if( lastSavedActivityTime == null || (now.getTimeInMillis() - lastSavedActivityTime.getTimeInMillis()) / (1000*60) > NOTIFICATION_PERIOD  ){
+			mNotificationManager.cancel(1);
+			NotificationCompat.Builder mBuilder =
+	    	        new NotificationCompat.Builder(this)
+	    	        .setSmallIcon(R.drawable.netdbfans)
+	    	        .setContentTitle("您很久沒記錄您的活動了!")
+	    	        .setContentText("點擊以記錄目前活動");
+	    	// Creates an explicit intent for an Activity in your app
+	    	Intent resultIntent = new Intent(this, DiaryInputActivity.class);
+	
+	    	// The stack builder object will contain an artificial back stack for the
+	    	// started Activity.
+	    	// This ensures that navigating backward from the Activity leads out of
+	    	// your application to the Home screen.
+	    	TaskStackBuilder stackBuilder = TaskStackBuilder.create(this);
+	    	// Adds the back stack for the Intent (but not the Intent itself)
+	    	stackBuilder.addParentStack(DiaryInputActivity.class);
+	    	// Adds the Intent that starts the Activity to the top of the stack
+	    	stackBuilder.addNextIntent(resultIntent);
+	    	PendingIntent resultPendingIntent =
+	    	        stackBuilder.getPendingIntent(
+	    	            0,
+	    	            PendingIntent.FLAG_UPDATE_CURRENT
+	    	        );
+	    	mBuilder.setContentIntent(resultPendingIntent);
+	    	
+	    	// mId allows you to update the notification later on.
+	    	mNotificationManager.notify(1, mBuilder.build());
+	    	lastSavedActivityTime = now;
+		}
+	}
+
 	private void unregisterServices(){
 		unregisterReceiver(mBatteryChangedReceiver);
 		unregisterReceiver(mDateChangedReceiver);

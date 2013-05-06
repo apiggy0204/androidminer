@@ -42,7 +42,7 @@ public class DaoMaster extends AbstractDaoMaster {
         @Override
         public void onCreate(SQLiteDatabase db) {
             Log.i("greenDAO", "Creating tables for schema version " + SCHEMA_VERSION);
-            createAllTables(db, false);
+            createAllTables(db, true);
         }
     }
     
