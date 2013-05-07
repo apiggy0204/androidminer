@@ -518,12 +518,17 @@ public class DiaryInputActivity extends Activity {
 					joinedStr += (act + ";");			
 				}
 				Log.d(TAG, "onSaveClicked joinedStr: " + joinedStr);
-				editor.putString(PREF_ACTIVITY_SET, joinedStr);
+				editor.putString(PREF_ACTIVITY_SET, joinedStr);				
 				editor.commit();
 				
 				writeToLog();
 				Toast.makeText(DiaryInputActivity.this, "已儲存!", Toast.LENGTH_LONG).show();
-				clearForm();					
+				clearForm();
+				
+				//TODO By default, next activity's start time = this activity's end time
+				mStartTime = Calendar.getInstance();
+				
+				finish();
 				//Use this to notify users to write diaries if they don't for a while 
 				mService.lastSavedActivityTime = Calendar.getInstance(); 
 			}
