@@ -321,7 +321,7 @@ public class LoggingService extends Service {
 			}
 	}};
 	private NotificationManager mNotificationManager;
-	private long NOTIFICATION_PERIOD = 60; //period of notifying user to input daily activities (in minutes)
+	private long NOTIFICATION_PERIOD = 120; //period of notifying user to input daily activities (in minutes)
 	
 	//Write sensor data into log files
 	//When isServiceRunning == true, continue to log indefinitely with postDelayed() method.

@@ -9,16 +9,37 @@
         android:layout_height="wrap_content"
         android:text="@string/diary_label_whatrudoing"
         android:textAppearance="?android:attr/textAppearanceLarge" />
-
+	<!-- 
+    <AutoCompleteTextView
+        android:id="@+id/autoCompleteTextView_doing"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ems="10"
+        />
+     -->
+     
     <EditText
         android:id="@+id/editText_diary_doing"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:ems="10" >
+        android:ems="10" 
+        android:hint="@string/diary_hint_doing" >
 
         <requestFocus />
     </EditText>
 
+    <TextView
+        android:id="@+id/diary_label_select_from_spinner"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/diary_label_select_one"
+        android:textAppearance="?android:attr/textAppearanceLarge" />
+
+    <Spinner
+        android:id="@+id/spinner_diary_doing"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+    
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content" >
@@ -42,6 +63,14 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/choose_start_time" />
+
+        <Button
+            android:id="@+id/button_diary_choose_start_date"
+            style="?android:attr/buttonStyleSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/diary_button_choose_date" />
+
     </LinearLayout>
     
     <TextView
@@ -81,6 +110,13 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/choose_end_time" />
+
+        <Button
+            android:id="@+id/button_diary_choose_end_date"
+            style="?android:attr/buttonStyleSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/diary_button_choose_date" />
 
     </LinearLayout>
 	
@@ -124,5 +160,11 @@
             android:text="@string/diary_button_quit" />
 
     </LinearLayout>
+
+    <TextView
+        android:id="@+id/label_diary_hint"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceSmall" />
 
 </LinearLayout>

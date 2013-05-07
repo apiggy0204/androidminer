@@ -2,9 +2,12 @@ package edu.ntu.arbor.sbchao.androidlogger;
 
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Calendar;
 
 import android.app.Activity;
+import android.app.DatePickerDialog;
+import android.app.DatePickerDialog.OnDateSetListener;
 import android.app.Dialog;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -25,8 +28,14 @@ import android.text.format.DateFormat;
 import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemSelectedListener;
+import android.widget.ArrayAdapter;
+import android.widget.AutoCompleteTextView;
 import android.widget.Button;
+import android.widget.DatePicker;
 import android.widget.EditText;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.TimePicker;
 import android.widget.Toast;
@@ -39,17 +48,25 @@ import edu.ntu.arbor.sbchao.androidlogger.scheme.ActivityLog;
 
 public class DiaryInputActivity extends Activity {
 
+	public static final String TAG = "DiaryInputActivity";
 	public static final int UPDATE_INFO = 0;
 	//public static final long UPDATE_FREQUENCY = 1000;
 	//public Handler mHandler = new ThreadHandler();
 	public static final String DATETIME_FORMAT = "yyyy-MM-dd aa hh:mm:ss";
 	
+	public static final String[] defaultActivities = new String[] {"請選擇...", "研究", "吃飯", "休閒", "運動", "出遊"};
+	ArrayList<String> activityList = new ArrayList<String>();
+	public static final String PREF_DIARY = "prefsDiary";
 	public static final String PREF_ACTIVITY_NAME = "prefActivityName";
 	public static final String PREF_START_TIME = "prefStartTime";
 	public static final String PREF_END_TIME = "prefEndTime";
+	public static final String PREF_ACTIVITY_SET = "prefsActivitySet";
 	
 	private static final int DIALOG_SET_START_TIME = 0;
 	private static final int DIALOG_SET_END_TIME = 1;
+	protected static final int DIALOG_SET_START_DATE = 2;
+	protected static final int DIALOG_SET_END_DATE = 3;
+	
 	
 	private Button buttonSave;
 	private Button buttonCancel;
@@ -61,6 +78,10 @@ public class DiaryInputActivity extends Activity {
 	private Button buttonQuit;
 	private Button buttonStartNow;
 	private Button buttonEndNow;
+	private AutoCompleteTextView autoCompleteTextDoing;
+	private Spinner spinnerDoing;
+	private Button buttonSetStartDate;
+	private Button buttonSetEndDate;
 	
 	private NotificationManager mNotificationManager;
 	
@@ -90,10 +111,13 @@ public class DiaryInputActivity extends Activity {
 		}
 	};
 	
+	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		setContentView(R.layout.activity_diary);	
+		setContentView(R.layout.activity_diary);
+		
+	
 		setUi();
 		
 		if(savedInstanceState != null){
@@ -104,12 +128,13 @@ public class DiaryInputActivity extends Activity {
 		
 		deviceId = ((TelephonyManager) this.getSystemService(Context.TELEPHONY_SERVICE)).getDeviceId();
 		mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-		mDbMgr = new DatabaseManager(this);			
+		mDbMgr = new DatabaseManager(this);	
+		
+
 	}
 	
 	@Override
 	protected void onSaveInstanceState(Bundle outState) {
-		// TODO Auto-generated method stub
 		super.onSaveInstanceState(outState);
 		outState.putSerializable(PREF_ACTIVITY_NAME, mActivityName);
 		outState.putSerializable(PREF_START_TIME, mStartTime);
@@ -138,10 +163,10 @@ public class DiaryInputActivity extends Activity {
 		super.onResume();
 		mDbMgr.openDb();
 		
-		SharedPreferences settings = getSharedPreferences(PREF_ACTIVITY_NAME, 0);
-		
+		SharedPreferences settings = getSharedPreferences(PREF_DIARY , 0);
 		mActivityName = settings.getString(PREF_ACTIVITY_NAME, "");
 		editTextDoing.setText(mActivityName);
+		//autoCompleteTextDoing.setText(mActivityName);
 		
 		Long startTimeInMillis = settings.getLong(PREF_START_TIME, -1);
 		if(startTimeInMillis == -1) mStartTime = null;
@@ -161,6 +186,15 @@ public class DiaryInputActivity extends Activity {
 			this.textEndTime.setText(DateFormat.format(DATETIME_FORMAT, c.getTime()));
 		}		
 		
+		/*
+		String joinedStr = settings.getString(PREF_ACTIVITY_SET, "");
+		Log.d(TAG, "onResume joinedStr: " + joinedStr);
+		if(joinedStr != ""){
+			for(String str : joinedStr.split(";")){
+				activityList.add(str);
+			}
+		}*/
+		
 		mNotificationManager.cancelAll();
 	}	
 	
@@ -169,13 +203,25 @@ public class DiaryInputActivity extends Activity {
 		super.onPause();
 		mDbMgr.closeDb();
 		
-		SharedPreferences settings = getSharedPreferences(PREF_ACTIVITY_NAME, 0);
-	    Editor editor = settings.edit();
-	    editor.clear();
+		SharedPreferences settings = getSharedPreferences(PREF_DIARY, 0);
+	    Editor editor = settings.edit();	 
+	    editor.remove(PREF_ACTIVITY_NAME);
+	    editor.remove(PREF_START_TIME);
+	    editor.remove(PREF_END_TIME);
+	    
 	    mActivityName = editTextDoing.getText().toString();
+	    //mActivityName = autoCompleteTextDoing.getText().toString();
 	    if(mActivityName != null) editor.putString(PREF_ACTIVITY_NAME, mActivityName);
 	    if(mStartTime != null) editor.putLong(PREF_START_TIME, mStartTime.getTimeInMillis());
 	    if(mEndTime != null) editor.putLong(PREF_END_TIME, mEndTime.getTimeInMillis());
+	    
+	    /*
+		String joinedStr = "";
+		for(String act : activityList){			
+			joinedStr += (act + ";");			
+		}
+		Log.d(TAG, "onPause joinedStr: " + joinedStr);
+		editor.putString(PREF_ACTIVITY_SET, joinedStr);*/
 	    editor.commit();
 	    
 	}
@@ -183,42 +229,92 @@ public class DiaryInputActivity extends Activity {
 	@Override
 	@Deprecated
 	protected Dialog onCreateDialog(int id) {
-    	TimePickerDialog tpd = null;
+    	//TimePickerDialog tpd = null;
+    	//DatePickerDialog dpd = null;
     	Calendar c = Calendar.getInstance();
     	switch (id) {      	
 	        case DIALOG_SET_START_TIME:  	        	
-	        	tpd = new TimePickerDialog(this, onStartTimeSetListener, c.get(Calendar.HOUR_OF_DAY), c.get(Calendar.MINUTE), false);  	 
-	        	break;
+	        	return new TimePickerDialog(this, onStartTimeSetListener, c.get(Calendar.HOUR_OF_DAY), c.get(Calendar.MINUTE), false);  	 
+	        	
 	        case DIALOG_SET_END_TIME:  	        	
-	        	tpd = new TimePickerDialog(this, onEndTimeSetListener, c.get(Calendar.HOUR_OF_DAY), c.get(Calendar.MINUTE), false); 
-	        	break;  
+	        	return  new TimePickerDialog(this, onEndTimeSetListener, c.get(Calendar.HOUR_OF_DAY), c.get(Calendar.MINUTE), false); 
+	        	 
+	        case DIALOG_SET_START_DATE:  	        	
+	        	return  new DatePickerDialog(this, onStartDateSetListener, c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH));  	 
+	        	
+	        case DIALOG_SET_END_DATE:  	        	
+	        	return  new DatePickerDialog(this, onEndDateSetListener, c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH)); 
+	        	  
 	    }  
-	    return tpd;  
+	    //return tpd;  
+		return null;
 	}
-
+	private OnDateSetListener onStartDateSetListener = new DatePickerDialog.OnDateSetListener() {
+		@Override
+		public void onDateSet(DatePicker view, int year, int monthOfYear, int dayOfMonth) {
+			if(mStartTime == null){
+	            Calendar c = Calendar.getInstance();
+	            c.set(Calendar.YEAR, year);
+	            c.set(Calendar.MONTH, monthOfYear);   
+	            c.set(Calendar.DAY_OF_MONTH, dayOfMonth);
+	            mStartTime = c;
+			} else {
+				mStartTime.set(Calendar.YEAR, year);
+				mStartTime.set(Calendar.MONTH, monthOfYear);   
+				mStartTime.set(Calendar.DAY_OF_MONTH, dayOfMonth);
+			}
+			textStartTime.setText(DateFormat.format(DATETIME_FORMAT, mStartTime.getTime()));
+		}  
+    };  
+    
+	private OnDateSetListener onEndDateSetListener = new DatePickerDialog.OnDateSetListener() {
+		@Override
+		public void onDateSet(DatePicker view, int year, int monthOfYear, int dayOfMonth) {
+			if(mEndTime == null){
+	            Calendar c = Calendar.getInstance();
+	            c.set(Calendar.YEAR, year);
+	            c.set(Calendar.MONTH, monthOfYear);   
+	            c.set(Calendar.DAY_OF_MONTH, dayOfMonth);
+	            mEndTime = c;
+			} else {
+				mEndTime.set(Calendar.YEAR, year);
+				mEndTime.set(Calendar.MONTH, monthOfYear);   
+				mEndTime.set(Calendar.DAY_OF_MONTH, dayOfMonth);
+			}
+			textEndTime.setText(DateFormat.format(DATETIME_FORMAT, mEndTime.getTime()));
+		}  
+    }; 
+    
 	private OnTimeSetListener onStartTimeSetListener = new TimePickerDialog.OnTimeSetListener() {
 		public void onTimeSet(TimePicker view, int hourOfDay, int minute) { 			
-            //mHourStart = hourOfDay;  
-            //mMinuteStart = minute;
-            Calendar c = Calendar.getInstance();
-            c.set(Calendar.HOUR_OF_DAY, hourOfDay);
-            c.set(Calendar.MINUTE, minute);            
-            mStartTime = c;
-            textStartTime.setText(DateFormat.format(DATETIME_FORMAT, c.getTime()));
+			if(mStartTime == null){
+	            Calendar c = Calendar.getInstance();
+	            c.set(Calendar.HOUR_OF_DAY, hourOfDay);
+	            c.set(Calendar.MINUTE, minute);            
+	            mStartTime = c;
+			} else {
+				mStartTime.set(Calendar.HOUR_OF_DAY, hourOfDay);
+				mStartTime.set(Calendar.MINUTE, minute);    
+			}
+            textStartTime.setText(DateFormat.format(DATETIME_FORMAT, mStartTime.getTime()));
         }  
     };  
 
     private OnTimeSetListener onEndTimeSetListener = new TimePickerDialog.OnTimeSetListener() {
-		public void onTimeSet(TimePicker view, int hourOfDay, int minute) { 			
-            //mHourEnd = hourOfDay;  
-            //mMinuteEnd = minute;
-            Calendar c = Calendar.getInstance();
-            c.set(Calendar.HOUR_OF_DAY, hourOfDay);
-            c.set(Calendar.MINUTE, minute);         
-            mEndTime = c;
-            textEndTime.setText(DateFormat.format(DATETIME_FORMAT, c.getTime()));
+		public void onTimeSet(TimePicker view, int hourOfDay, int minute) { 
+			if(mEndTime == null){
+	            Calendar c = Calendar.getInstance();
+	            c.set(Calendar.HOUR_OF_DAY, hourOfDay);
+	            c.set(Calendar.MINUTE, minute);         
+	            mEndTime = c;
+			} else {
+				mEndTime.set(Calendar.HOUR_OF_DAY, hourOfDay);
+				mEndTime.set(Calendar.MINUTE, minute);   
+			}
+            textEndTime.setText(DateFormat.format(DATETIME_FORMAT, mEndTime.getTime()));
         }  
     };
+
 
 	private void writeToLog(){
 			
@@ -265,7 +361,6 @@ public class DiaryInputActivity extends Activity {
 	}
 	
 	public void writeToDatabase(){
-		//TODO test if this is good
 		Log.v("Database", "Starting to insert new ActivityLog");
 		
 		ActivityLog log = new ActivityLog(null, deviceId, mStartTime.getTime(), mEndTime.getTime(), mActivityName, false);
@@ -277,6 +372,7 @@ public class DiaryInputActivity extends Activity {
 	
     private void setUi(){
     	editTextDoing = (EditText) findViewById(R.id.editText_diary_doing);
+    	//autoCompleteTextDoing = (AutoCompleteTextView) findViewById(R.id.autoCompleteTextView_doing);
     	buttonSetStartTime = (Button) findViewById(R.id.button_diary_choose_start_time);
     	buttonSetEndTime   = (Button) findViewById(R.id.button_diary_choose_end_time);
     	buttonSave = (Button) findViewById(R.id.button_diary_save);
@@ -284,20 +380,36 @@ public class DiaryInputActivity extends Activity {
     	buttonQuit = (Button) findViewById(R.id.button_diary_quit);
     	buttonStartNow = (Button) findViewById(R.id.button_diary_start_now);
     	buttonEndNow = (Button) findViewById(R.id.button_diary_end_now);
+    	buttonSetStartDate = (Button) findViewById(R.id.button_diary_choose_start_date);
+    	buttonSetEndDate = (Button) findViewById(R.id.button_diary_choose_end_date);
     	textStartTime = (TextView) findViewById(R.id.text_diary_start_time);
     	textEndTime = (TextView) findViewById(R.id.text_diary_end_time);
+    	spinnerDoing = (Spinner) findViewById(R.id.spinner_diary_doing);
+    	
+    	buttonSetStartDate.setOnClickListener(new OnClickListener(){
+			@Override
+			public void onClick(View arg0) {
+				showDialog(DIALOG_SET_START_DATE);		
+			}
+		});
+    	
+    	buttonSetEndDate.setOnClickListener(new OnClickListener(){
+			@Override
+			public void onClick(View v) {
+				showDialog(DIALOG_SET_END_DATE);
+			}
+		});
     	
     	buttonStartNow.setOnClickListener(new OnClickListener(){
 			@Override
 			public void onClick(View arg0) {
-				// TODO Auto-generated method stub
 				Calendar c = Calendar.getInstance();     
 	            mStartTime = c;
 	            textStartTime.setText(DateFormat.format(DATETIME_FORMAT, c.getTime()));
 	            
 	            sendNotification();
-	            Toast.makeText(DiaryInputActivity.this, "已開始記錄!", Toast.LENGTH_LONG).show();
-	            finish();
+	            //Toast.makeText(DiaryInputActivity.this, "已開始記錄!", Toast.LENGTH_LONG).show();
+	            //finish();
 			}
 		});
     	
@@ -324,25 +436,7 @@ public class DiaryInputActivity extends Activity {
 			}
 		});
     	
-    	buttonSave.setOnClickListener(new OnClickListener(){
-			@Override
-			public void onClick(View arg0) {
-				
-				mActivityName = editTextDoing.getText().toString();
-				if(mActivityName == null || mActivityName.equals("") || mStartTime == null || mEndTime == null){
-					Toast.makeText(DiaryInputActivity.this, "欄位不得為空!", Toast.LENGTH_LONG).show();
-				} 
-				else if( !mStartTime.before(mEndTime) ){
-					Toast.makeText(DiaryInputActivity.this, "結束時間不得早於開始時間!", Toast.LENGTH_LONG).show();
-				}
-				else{					
-					writeToLog();
-					Toast.makeText(DiaryInputActivity.this, "已儲存!", Toast.LENGTH_LONG).show();
-					clearForm();					
-					mService.lastSavedActivityTime = Calendar.getInstance(); 
-					finish();
-				}
-		}});
+    	buttonSave.setOnClickListener(onButtonSaveClickedListener);
     	
     	buttonCancel.setOnClickListener(new OnClickListener(){
 			@Override
@@ -356,11 +450,89 @@ public class DiaryInputActivity extends Activity {
 				finish();
 			}
 		});
+    	
+    	//Add user-specified activities to Spinner from preferences
+    	setSpinner();
+        
+        //ArrayAdapter<String> adapterAuto = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_dropdown_item, activityList);
+    	//autoCompleteTextDoing.setAdapter(adapterAuto);
+    	//autoCompleteTextDoing.setThreshold(1);
+    	
     }
     
+    //Add user-specified activities to Spinner from preferences
+    private void setSpinner(){    	
+    	SharedPreferences settings = getSharedPreferences(PREF_DIARY, 0);
+    	String joinedStr = settings.getString(PREF_ACTIVITY_SET, "");
+    	Log.d(TAG, "setUi joinedStr: " + joinedStr);
+    	String activityArr [];
+		if(joinedStr.equals("")){ 
+			//Default options when a user first uses this app
+			for(String act : defaultActivities){
+				activityList.add(act);
+			}
+			activityArr = (String[]) activityList.toArray(new String[0]);
+		} else {
+			activityArr = joinedStr.split(";");
+			for(String act : activityArr){
+				activityList.add(act);
+			}
+		}		
+		//Add activities to the spinner
+    	ArrayAdapter<String> adapterSpinner = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, activityArr);
+        spinnerDoing.setAdapter(adapterSpinner);
+        spinnerDoing.setOnItemSelectedListener(new OnItemSelectedListener(){
+        	public void onItemSelected(AdapterView<?> adapterView, View view, int position, long id) {
+        		if(position != 0){
+	        		editTextDoing.setText(adapterView.getSelectedItem().toString());
+	        		mActivityName = editTextDoing.getText().toString();
+        		}
+        	}  
+        	public void onNothingSelected(AdapterView<?> arg0) {  
+                editTextDoing.setText("");
+                mActivityName = editTextDoing.getText().toString();
+        	}  
+        });            
+        spinnerDoing.setVisibility(View.VISIBLE);  
+    }
+    
+    private OnClickListener onButtonSaveClickedListener = new OnClickListener(){
+		@Override
+		public void onClick(View arg0) {
+			
+			mActivityName = editTextDoing.getText().toString();
+			//mActivityName = autoCompleteTextDoing.getText().toString();
+			if(mActivityName == null || mActivityName.equals("") || mStartTime == null || mEndTime == null){
+				Toast.makeText(DiaryInputActivity.this, "欄位不得為空!", Toast.LENGTH_LONG).show();
+			} 
+			else if( !mStartTime.before(mEndTime) ){
+				Toast.makeText(DiaryInputActivity.this, "結束時間不得早於開始時間!", Toast.LENGTH_LONG).show();
+			}
+			else{		
+				//Add new user-specified activity to the preferences so that it can be conveniently selected in the spinner
+				if( !activityList.contains(mActivityName) ) activityList.add(mActivityName);					 
+				SharedPreferences settings = getSharedPreferences(PREF_DIARY, 0);
+			    Editor editor = settings.edit();	    				    
+				String joinedStr = "";
+				for(String act : activityList){			
+					joinedStr += (act + ";");			
+				}
+				Log.d(TAG, "onSaveClicked joinedStr: " + joinedStr);
+				editor.putString(PREF_ACTIVITY_SET, joinedStr);
+				editor.commit();
+				
+				writeToLog();
+				Toast.makeText(DiaryInputActivity.this, "已儲存!", Toast.LENGTH_LONG).show();
+				clearForm();					
+				//Use this to notify users to write diaries if they don't for a while 
+				mService.lastSavedActivityTime = Calendar.getInstance(); 
+			}
+		}
+	};
     
     private void clearForm(){
     	editTextDoing.setText("");
+    	//autoCompleteTextDoing.setText("");
     	textStartTime.setText("");
     	textEndTime.setText("");
     	mStartTime = null;
@@ -370,11 +542,12 @@ public class DiaryInputActivity extends Activity {
     
     private void sendNotification(){
     	mActivityName = editTextDoing.getText().toString();
+    	//mActivityName = autoCompleteTextDoing.getText().toString();
     	NotificationCompat.Builder mBuilder =
     	        new NotificationCompat.Builder(this)
     	        .setSmallIcon(R.drawable.netdbfans)
     	        .setContentTitle("目前活動: " + mActivityName)
-    	        .setContentText("點擊以記錄目前活動");
+    	        .setContentText("點擊以儲存目前活動");
     	// Creates an explicit intent for an Activity in your app
     	Intent resultIntent = new Intent(this, DiaryInputActivity.class);
 

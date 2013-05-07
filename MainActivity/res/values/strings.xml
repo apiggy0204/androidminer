@@ -14,14 +14,18 @@
 	<string name="diary_label_endtime">結束時間</string>
 	<string name="diary_button_save">儲存</string>
 	<string name="diary_button_cancel">清除</string>
-	<string name="choose_start_time">選擇開始時間</string>
-	<string name="choose_end_time">選擇結束時間</string>
+	<string name="choose_start_time">選時間</string>
+	<string name="choose_end_time">選時間</string>
 	<string name="diary_button_quit">結束</string>
 	<string name="main_diary_input">寫日記</string>
 	<string name="main_read_diary">讀日記</string>
 	<string name="main_map">讀軌跡</string>
 	<string name="google_api_key">AIzaSyCtFWN7ea8kj3RiBQBjPjmN3yTCvxWuUJ8</string>
-	<string name="diary_button_start_now">現在開始</string>
-	<string name="diary_button_end_now">現在結束</string>
+	<string name="diary_button_start_now">設為現在</string>
+	<string name="diary_button_end_now">設為現在</string>
+	<string name="diary_label_select_one">或是從裡面選一個↓</string>
+	<string name="diary_hint_doing">請輸入您的活動...</string>
+	<string name="diary_button_choose_date">選日期</string>
+	<string name="diary_label_hint">小提示: 可以先輸入活動名稱以及開始時間之後離開，等到結束時再回來把表格填完 (已輸入的部分會被保存下來)</string>
 
 </resources>
