@@ -58,7 +58,7 @@ public class MainDashboardActivity extends Activity {
 				//TODO
 				
 				Intent intent = new Intent();
-				intent.setClass(MainDashboardActivity.this, ReadDiaryActivity.class);
+				intent.setClass(MainDashboardActivity.this, SimpleReadDiaryActivity.class);
 				startActivity(intent);
 				
 		}});
