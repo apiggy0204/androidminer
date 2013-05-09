@@ -14,6 +14,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.support.v4.app.FragmentActivity;
+import android.support.v4.app.FragmentTransaction;
 import android.util.Log;
 import android.widget.SimpleAdapter;
 
@@ -43,6 +44,7 @@ public class ReadDiaryActivity extends FragmentActivity {
 	//Ui
 	public SimpleAdapter adapter;
 	private ProgressDialog mDialog;
+	private DiaryListFragment mListFragment;
 	private SupportMapFragment mMapFragment;
 	private GoogleMap mGoogleMap;
 	
@@ -67,9 +69,14 @@ public class ReadDiaryActivity extends FragmentActivity {
         super.onCreate(savedInstanceState);        
 //        addUiListeners();
         setContentView(R.layout.activity_read_diary);
+        mListFragment = (DiaryListFragment) getSupportFragmentManager().findFragmentById(R.id.list);
         mMapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
         mGoogleMap = mMapFragment.getMap();
+        FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
+        transaction.hide(mMapFragment);
+        
         mDbMgr = new DatabaseManager(this);
+        
     }
     
     @Override
@@ -132,6 +139,7 @@ public class ReadDiaryActivity extends FragmentActivity {
     //List today's activity
     private class QueryDiaryTask extends AsyncTask<Void, Void, Void>{
     	private PolylineOptions lineOptions = new PolylineOptions();
+    	List<ActivityLog> logs;
     	
 		@Override
 		protected Void doInBackground(Void... arg0) {
@@ -140,7 +148,7 @@ public class ReadDiaryActivity extends FragmentActivity {
 			Log.i("doInBackgound", "start!");
 			QueryBuilder<ActivityLog> qb = mDbMgr.getActivityLogDao().queryBuilder();
 	        qb.where(qb.and(ActivityLogDao.Properties.StartTime.ge(getStartOfToday()), ActivityLogDao.Properties.EndTime.le(getEndOfToday())));			
-	        List<ActivityLog> logs = qb.list();
+	        logs = qb.list();
 	        
 	        for(ActivityLog log : logs){
 	        	Log.i("doInBackground", "Activity Name: " + log.getActivityName());
@@ -185,6 +193,8 @@ public class ReadDiaryActivity extends FragmentActivity {
 //	        );  
 //	        ReadDiaryActivity.this.setListAdapter(adapter);
 	        
+    		mListFragment.update(logs);
+    		
     		//Close the "loading" dialog
 	        if(!displayed){
 	        	displayed = true;
