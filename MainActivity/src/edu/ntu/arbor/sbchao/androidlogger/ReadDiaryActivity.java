@@ -1,5 +1,6 @@
 package edu.ntu.arbor.sbchao.androidlogger;
 
+import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -13,14 +14,17 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
+import android.support.v4.app.FragmentManager;
+import android.support.v4.app.FragmentTransaction;
 import android.util.Log;
-import android.widget.SimpleAdapter;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.GoogleMap.OnInfoWindowClickListener;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
@@ -36,19 +40,22 @@ import edu.ntu.arbor.sbchao.androidlogger.scheme.MobileLogDao;
 public class ReadDiaryActivity extends FragmentActivity implements OnInfoWindowClickListener {
 	private static final int LOAD_DIARY = 0x0000;
 
-	private boolean displayed = false;
+	public static final int LIST = 0;
+	public static final int MAP = 1;
 
 	// Database access
 	private DatabaseManager mDbMgr;
 
-	// Ui
-	public SimpleAdapter adapter;
+	// UI elements
+	// public SimpleAdapter adapter;
 	private ProgressDialog mDialog;
-	private DiaryListFragment mListFragment;
-
-	private SupportMapFragment mMapFragment;
+	private static final int FRAGMENT_COUNT = MAP + 1;
+	private Fragment[] mFragments = new Fragment[FRAGMENT_COUNT];
 	private GoogleMap mGoogleMap;
-	private int[] colors = { Color.CYAN, Color.MAGENTA, Color.GREEN, Color.YELLOW, Color.BLUE };
+
+	// UI settings
+	private boolean isDisplayed = false;
+	private int mDisplayMode;
 
 	private Handler mHandler = new Handler() {
 		@Override
@@ -71,13 +78,18 @@ public class ReadDiaryActivity extends FragmentActivity implements OnInfoWindowC
 		super.onCreate(savedInstanceState);
 		// addUiListeners();
 		setContentView(R.layout.activity_read_diary);
-		mListFragment = (DiaryListFragment) getSupportFragmentManager().findFragmentById(R.id.list);
-		mMapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
-		mGoogleMap = mMapFragment.getMap();
+		mFragments[LIST] = (DiaryListFragment) getSupportFragmentManager().findFragmentById(R.id.list);
+		mFragments[MAP] = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
+		mGoogleMap = ((SupportMapFragment) mFragments[MAP]).getMap();
 		mGoogleMap.setOnInfoWindowClickListener(this);
-		// mGoogleMap.setMapType(GoogleMap.MAP_TYPE_TERRAIN);
+		mGoogleMap.setMapType(GoogleMap.MAP_TYPE_TERRAIN);
 		mGoogleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(25.03, 121.3), 17));
 
+		FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
+		for (Fragment fragment : mFragments) {
+			transaction.hide(fragment);
+		}
+		transaction.commit();
 		mDbMgr = new DatabaseManager(this);
 
 	}
@@ -89,7 +101,7 @@ public class ReadDiaryActivity extends FragmentActivity implements OnInfoWindowC
 
 		// Update info on UI
 		mHandler.postDelayed(queryDiaryThread, 0);
-		if (!displayed) {
+		if (!isDisplayed) {
 			mDialog = new ProgressDialog(ReadDiaryActivity.this);
 			mDialog.setMessage("Loading diaries...");
 			mDialog.setCancelable(false);
@@ -153,41 +165,49 @@ public class ReadDiaryActivity extends FragmentActivity implements OnInfoWindowC
 					ActivityLogDao.Properties.EndTime.le(getEndOfToday())));
 			logs = qb.list();
 			Collections.sort(logs);
-			int count = 0;
-			for (ActivityLog log : logs) {
-				Date startTime = log.getStartTime();
-				Log.d("!!", startTime.toString());
-				Date endTime = log.getEndTime();
+			mDisplayMode = getIntent().getIntExtra("mode", 0);
+			if (mDisplayMode == MAP) {
+				int count = 0;
+				for (ActivityLog log : logs) {
+					Date startTime = log.getStartTime();
+					Date endTime = log.getEndTime();
 
-				// List mobile logs during start time and end time of this daily
-				// activity
-				QueryBuilder<MobileLog> mqb = mDbMgr.getMobileLogDao().queryBuilder();
-				mqb.where(mqb.and(MobileLogDao.Properties.Time.ge(startTime),
-						MobileLogDao.Properties.Time.le(endTime)));
+					// List mobile logs during start time and end time of this
+					// daily
+					// activity
+					QueryBuilder<MobileLog> mqb = mDbMgr.getMobileLogDao().queryBuilder();
+					mqb.where(mqb.and(MobileLogDao.Properties.Time.ge(startTime),
+							MobileLogDao.Properties.Time.le(endTime)));
 
-				PolylineOptions lineOptions = new PolylineOptions();
-				lineOptions.color(count * 360 / logs.size());
-				lineOptions.width(10);
-				List<MobileLog> mobileLogs = mqb.list();
-				for (MobileLog mlog : mobileLogs) {
-					String latString = String.valueOf(mlog.getLat());
-					String lngString = String.valueOf(mlog.getLon());
-					if (!latString.equals("null") && !lngString.equals("null")) {
-						LatLng position = new LatLng(Double.valueOf(mlog.getLat()),
-								Double.valueOf(mlog.getLon()));
-						lineOptions.add(position);
-						initPosition = position;
+					PolylineOptions lineOptions = new PolylineOptions();
+					float[] hsv = new float[3];
+					hsv[0] = count * 360 / logs.size();
+					hsv[1] = 1;
+					hsv[2] = 1;
+					lineOptions.color(Color.HSVToColor(hsv));
+					lineOptions.width(10);
+					List<MobileLog> mobileLogs = mqb.list();
+					for (MobileLog mlog : mobileLogs) {
+						String latString = String.valueOf(mlog.getLat());
+						String lngString = String.valueOf(mlog.getLon());
+						if (!latString.equals("null") && !lngString.equals("null")) {
+							LatLng position = new LatLng(Double.valueOf(mlog.getLat()), Double.valueOf(mlog
+									.getLon()));
+							lineOptions.add(position);
+							initPosition = position;
+						}
 					}
+					lineOptionsList.add(lineOptions);
+					DateFormat format = DateFormat.getTimeInstance(DateFormat.SHORT);
+					markerOptionsList.add(new MarkerOptions()
+							.icon(BitmapDescriptorFactory.defaultMarker(count * 360 / logs.size()))
+							.position(initPosition)
+							.title(log.getActivityName())
+							.snippet(
+									format.format(log.getStartTime()) + " ~ "
+											+ format.format(log.getEndTime())));
+					count++;
 				}
-				lineOptionsList.add(lineOptions);
-				SimpleDateFormat format = new SimpleDateFormat("hh:mm");
-				markerOptionsList.add(new MarkerOptions()
-						.position(initPosition)
-						.title(log.getActivityName())
-						.snippet(
-								format.format(log.getStartTime()) + " ~ "
-										+ format.format(log.getEndTime())));
-				count++;
 			}
 			return null;
 		}
@@ -206,20 +226,23 @@ public class ReadDiaryActivity extends FragmentActivity implements OnInfoWindowC
 			// );
 			// ReadDiaryActivity.this.setListAdapter(adapter);
 
-			// mListFragment.update(logs);
-
-			// mGoogleMap.addPolyline(lineOptions);
-			mGoogleMap.moveCamera(CameraUpdateFactory.newLatLng(initPosition));
-			for (PolylineOptions options : lineOptionsList) {
-				mGoogleMap.addPolyline(options);
-			}
-			for (MarkerOptions options : markerOptionsList) {
-				mGoogleMap.addMarker(options);
+			if (mDisplayMode == LIST) {
+				((DiaryListFragment) mFragments[LIST]).update(logs);
+				showFragment(LIST, false);
+			} else {
+				mGoogleMap.moveCamera(CameraUpdateFactory.newLatLng(initPosition));
+				for (PolylineOptions options : lineOptionsList) {
+					mGoogleMap.addPolyline(options);
+				}
+				for (MarkerOptions options : markerOptionsList) {
+					mGoogleMap.addMarker(options);
+				}
+				showFragment(MAP, false);
 			}
 
 			// Close the "loading" dialog
-			if (!displayed) {
-				displayed = true;
+			if (!isDisplayed) {
+				isDisplayed = true;
 				mDialog.dismiss();
 			}
 		}
@@ -248,6 +271,22 @@ public class ReadDiaryActivity extends FragmentActivity implements OnInfoWindowC
 			c.roll(Calendar.DAY_OF_YEAR, true); // increment a day
 			return c.getTime();
 		}
+	}
+
+	private void showFragment(int fragmentIndex, boolean addToBackStack) {
+		FragmentManager fm = getSupportFragmentManager();
+		FragmentTransaction transaction = fm.beginTransaction();
+		for (int i = 0; i < mFragments.length; i++) {
+			if (i == fragmentIndex) {
+				transaction.show(mFragments[i]);
+			} else {
+				transaction.hide(mFragments[i]);
+			}
+		}
+		if (addToBackStack) {
+			transaction.addToBackStack(null);
+		}
+		transaction.commit();
 	}
 
 	@Override

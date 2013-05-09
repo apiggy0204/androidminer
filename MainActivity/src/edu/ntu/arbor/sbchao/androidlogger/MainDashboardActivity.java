@@ -55,10 +55,9 @@ public class MainDashboardActivity extends Activity {
 		buttonReadDiary.setOnClickListener(new OnClickListener(){
 			@Override
 			public void onClick(View arg0) {
-				//TODO
-				
 				Intent intent = new Intent();
 				intent.setClass(MainDashboardActivity.this, ReadDiaryActivity.class);
+				intent.putExtra("mode", ReadDiaryActivity.LIST);
 				startActivity(intent);
 				
 		}});
@@ -74,7 +73,8 @@ public class MainDashboardActivity extends Activity {
 			@Override
 			public void onClick(View arg0) {				
 				Intent intent = new Intent();
-				intent.setClass(MainDashboardActivity.this, ReadDiaryActivity.class); //TODO
+				intent.setClass(MainDashboardActivity.this, ReadDiaryActivity.class);
+				intent.putExtra("mode", ReadDiaryActivity.MAP);
 				startActivity(intent);				
 		}});
 		TextView textMap = new TextView(this);

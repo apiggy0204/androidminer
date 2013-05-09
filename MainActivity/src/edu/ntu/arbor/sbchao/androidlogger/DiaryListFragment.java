@@ -1,27 +1,27 @@
 package edu.ntu.arbor.sbchao.androidlogger;
 
-import java.util.Date;
+import java.text.DateFormat;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-import android.app.Activity;
-import android.database.DataSetObserver;
+import android.content.Context;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.LinearLayout;
-import android.widget.ListAdapter;
+import android.widget.ImageView;
 import android.widget.ListView;
+import android.widget.RelativeLayout;
+import android.widget.SimpleAdapter;
 import android.widget.TextView;
-
-import com.google.android.gms.maps.GoogleMap.OnInfoWindowClickListener;
-import com.google.android.gms.maps.model.Marker;
-
 import edu.ntu.arbor.sbchao.androidlogger.scheme.ActivityLog;
 
-public class DiaryListFragment extends Fragment implements OnInfoWindowClickListener {
-	private Activity mActivity;
+public class DiaryListFragment extends Fragment {
 	private ListView mListView;
 	private TimelineAdapter mAdapter;
 
@@ -37,110 +37,79 @@ public class DiaryListFragment extends Fragment implements OnInfoWindowClickList
 	@Override
 	public void onActivityCreated(Bundle savedInstanceState) {
 		super.onActivityCreated(savedInstanceState);
-		mActivity = getActivity();
 	}
 
 	public void update(List<ActivityLog> logs) {
+		List<Double> durations = new ArrayList<Double>();
+		long prevEndTime = -1;
+		double min = Double.MAX_VALUE;
 		for (ActivityLog log : logs) {
-			Date startTime = log.getStartTime();
-	    	Date endTime = log.getEndTime();
-		}
-		mAdapter = new TimelineAdapter(logs);
-		mListView.setAdapter(new TimelineAdapter(logs));
-	}
-
-	private class TimelineAdapter implements ListAdapter {
-		private List<ActivityLog> logs;
-
-		public TimelineAdapter(List<ActivityLog> _logs) {
-			logs = _logs;
-		}
-		@Override
-		public int getCount() {
-			return 2 * logs.size() - 1 ;
-		}
-
-		@Override
-		public Object getItem(int position) {
-			return logs.get(position);
-		}
-
-		@Override
-		public long getItemId(int arg0) {
-			// TODO Auto-generated method stub
-			return 0;
-		}
-
-		@Override
-		public int getItemViewType(int arg0) {
-			// TODO Auto-generated method stub
-			return 0;
-		}
-
-		@Override
-		public View getView(int position, View arg1, ViewGroup arg2) {
-			LayoutInflater inflater = mActivity.getLayoutInflater();
-			View listItem = (View) inflater.inflate(R.layout.listitem_event, null);
-
-			listItem.setMinimumHeight(10);
-			TextView hourTextView = (TextView) listItem.findViewById(R.id.textView_hour);
-			if (((position >= 0) && (position <= 2)) || ((position >= 15) && (position <= 23)))
-				hourTextView.setText(String.valueOf((position + 9) % 24) + " am");
-			else hourTextView.setText(String.valueOf((position + 9) % 24) + " pm");
-
-			LinearLayout eventlLayout = (LinearLayout) listItem.findViewById(R.id.layout_event);
-			if (position % 2 == 0) {
-				TextView eventTextView = new TextView(mActivity);
-				eventTextView.setText(logs.get(position/2).getActivityName());
-				eventlLayout.addView(eventTextView);
-			} else {
-				listItem.setMinimumHeight(20);
+			long startTime = log.getStartTime().getTime();
+			long endTime = log.getEndTime().getTime();
+			if (prevEndTime != -1) {
+				double span = startTime - prevEndTime;
+				if (span < 0) {
+					span = 0;
+				} else {
+					min = Math.min(min, span);
+				}
+				durations.add(span);
 			}
-			
+			double duration = endTime - startTime;
+			min = Math.min(min, duration);
+			durations.add(duration);
+			prevEndTime = endTime;
+		}
 
-//			TextView eventTextView = new TextView(mActivity);
-//			eventTextView.setText("!!!");
-//			eventlLayout.addView(eventTextView);
+		DateFormat dateFormat = DateFormat.getTimeInstance(DateFormat.SHORT);
+		List<Map<String, Object>> listData = new ArrayList<Map<String, Object>>();
+		for (int i = 0; i < durations.size(); i++) {
+			Map<String, Object> item = new HashMap<String, Object>();
+			item.put("activity", (i % 2 == 0) ? logs.get(i / 2).getActivityName() : "");
+			item.put("duration", (i % 2 == 0) ? dateFormat.format(logs.get(i / 2).getStartTime()) + " ~ "
+					+ dateFormat.format(logs.get(i / 2).getEndTime()) : "");
+//			Log.d("!!", String.valueOf(durations.get(i)));
+			item.put("height", (double) durations.get(i) / (double) min);
+			listData.add(item);
+		}
+		mAdapter = new TimelineAdapter(getActivity(), listData, R.layout.listitem_diary, new String[] {
+				"activity", "duration" }, new int[] { R.id.textView_activity, R.id.textView_duration });
+		mListView.setAdapter(mAdapter);
+	}
 
-			return listItem;
+	private class TimelineAdapter extends SimpleAdapter {
+		private List<? extends Map<String, ?>> data;
+
+		public TimelineAdapter(Context context, List<? extends Map<String, ?>> data, int resource,
+				String[] from, int[] to) {
+			super(context, data, resource, from, to);
+			this.data = data;
 		}
 
 		@Override
-		public int getViewTypeCount() {
-			return 1;
-		}
-
-		@Override
-		public boolean hasStableIds() {
-			return false;
-		}
-
-		@Override
-		public boolean isEmpty() {
-			return false;
-		}
-
-		@Override
-		public void registerDataSetObserver(DataSetObserver arg0) {
-		}
-
-		@Override
-		public void unregisterDataSetObserver(DataSetObserver arg0) {
-		}
-
-		@Override
-		public boolean areAllItemsEnabled() {
-			return false;
-		}
-
-		@Override
-		public boolean isEnabled(int arg0) {
-			return false;
+		public View getView(int position, View convertView, ViewGroup parent) {
+//			if (convertView == null) {
+				convertView = super.getView(position, convertView, parent);
+				double height = (Double) data.get(position).get("height");
+				if (position % 2 == 1) {
+					TextView durationTextView = (TextView) convertView.findViewById(R.id.textView_duration);
+					TextView activityTextView = (TextView) convertView.findViewById(R.id.textView_activity);
+					ImageView lineImageView = (ImageView) convertView.findViewById(R.id.imageView_line);
+					durationTextView.setBackgroundColor(Color.rgb(226, 222, 216));
+					activityTextView.setBackgroundColor(Color.rgb(226, 222, 216));
+					lineImageView.setImageResource(R.drawable.duration_line);
+				} else {
+					TextView durationTextView = (TextView) convertView.findViewById(R.id.textView_duration);
+					TextView activityTextView = (TextView) convertView.findViewById(R.id.textView_activity);
+					ImageView lineImageView = (ImageView) convertView.findViewById(R.id.imageView_line);
+					durationTextView.setBackgroundColor(Color.rgb(74, 82, 128));
+					activityTextView.setBackgroundColor(Color.rgb(229, 216, 171));
+					lineImageView.setImageResource(R.drawable.activity_line);
+				}
+				convertView.setLayoutParams(new ListView.LayoutParams(
+						RelativeLayout.LayoutParams.MATCH_PARENT, (int) (height < 1 ? 1 : ((int) (height * 80)))));
+//			}
+			return convertView;
 		}
 	}
-	
-	@Override
-    public void onInfoWindowClick(Marker marker) {
-		marker.hideInfoWindow();
-    }
 }
