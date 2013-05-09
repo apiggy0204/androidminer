@@ -1,11 +1,8 @@
 package edu.ntu.arbor.sbchao.androidlogger;
 
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
-import android.R.integer;
 import android.app.Activity;
 import android.database.DataSetObserver;
 import android.os.Bundle;
@@ -17,9 +14,13 @@ import android.widget.LinearLayout;
 import android.widget.ListAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
+
+import com.google.android.gms.maps.GoogleMap.OnInfoWindowClickListener;
+import com.google.android.gms.maps.model.Marker;
+
 import edu.ntu.arbor.sbchao.androidlogger.scheme.ActivityLog;
 
-public class DiaryListFragment extends Fragment {
+public class DiaryListFragment extends Fragment implements OnInfoWindowClickListener {
 	private Activity mActivity;
 	private ListView mListView;
 	private TimelineAdapter mAdapter;
@@ -137,4 +138,9 @@ public class DiaryListFragment extends Fragment {
 			return false;
 		}
 	}
+	
+	@Override
+    public void onInfoWindowClick(Marker marker) {
+		marker.hideInfoWindow();
+    }
 }
