@@ -63,7 +63,7 @@
 
 		<meta-data
 			android:name="com.google.android.maps.v2.API_KEY"
-			android:value="@string/google_api_key" />
+			android:value="@string/google_api_key_signed" />
 
 		<service android:name=".LoggingService" />
 		<service android:name="edu.ntu.arbor.sbchao.androidlogger.logmanager.UploadingService" />
