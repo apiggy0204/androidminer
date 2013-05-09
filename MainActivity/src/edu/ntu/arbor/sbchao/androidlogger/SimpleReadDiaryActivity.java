@@ -30,6 +30,7 @@ import edu.ntu.arbor.sbchao.androidlogger.scheme.ActivityLogDao;
 public class SimpleReadDiaryActivity extends ListActivity {
 	
 	private static final int LOAD_DIARY = 0x0000;
+	private static final String Tag = "SimpleReadDiaryActivity";
 	
 	private boolean displayed = false;
 	private ArrayList<Map<String, String>> mListItemMaps = new ArrayList<Map<String, String>>();  
@@ -125,21 +126,22 @@ public class SimpleReadDiaryActivity extends ListActivity {
 	
     //List today's activity
     private class QueryDiaryTask extends AsyncTask<Void, Void, Void>{
-    	private PolylineOptions lineOptions = new PolylineOptions();
+    	//private PolylineOptions lineOptions = new PolylineOptions();
     	
 		@Override
 		protected Void doInBackground(Void... arg0) {
 			//TODO query the database and 		
 			
-			Log.i("doInBackgound", "start!");
+			Log.i(Tag, "start!");
 			QueryBuilder<ActivityLog> qb = mDbMgr.getActivityLogDao().queryBuilder();
-	        qb.where(qb.and(ActivityLogDao.Properties.StartTime.ge(getStartOfToday()), ActivityLogDao.Properties.EndTime.le(getEndOfToday())));			
+	        //qb.where(qb.and(ActivityLogDao.Properties.StartTime.ge(getStartOfToday()), ActivityLogDao.Properties.EndTime.le(getEndOfToday())));
+			
 	        List<ActivityLog> logs = qb.list();
 	        
 	        for(int i = logs.size()-1; i>=0; i--){
 	        	
 	        	ActivityLog log = logs.get(i); 
-	        	Log.i("doInBackground", "Activity Name: " + log.getActivityName());
+	        	Log.i(Tag, "Activity Name: " + log.getActivityName());
 	        	Date startTime = log.getStartTime();
 	        	Date endTime = log.getEndTime();
 	        	
@@ -164,7 +166,7 @@ public class SimpleReadDiaryActivity extends ListActivity {
 	            mLogs.add(log);
 	        }
 	        
-	        Log.i("doInBackgound", "finish!!");
+	        Log.i(Tag, "finish!!");
 			return null;
 		}
 		
