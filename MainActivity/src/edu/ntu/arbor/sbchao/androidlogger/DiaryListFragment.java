@@ -65,7 +65,8 @@ public class DiaryListFragment extends Fragment {
 		List<Map<String, Object>> listData = new ArrayList<Map<String, Object>>();
 		for (int i = 0; i < durations.size(); i++) {
 			Map<String, Object> item = new HashMap<String, Object>();
-			item.put("activity", (i % 2 == 0) ? logs.get(i / 2).getActivityName() : "");
+			item.put("activity", (i % 2 == 0) ? (logs.get(i / 2).getActivityName() + " "  + logs.get(i / 2).getActivityComment()) : ""); //TODO
+			Log.i("DiaryListFragment", logs.get(i / 2).getActivityName());
 			item.put("duration", (i % 2 == 0) ? dateFormat.format(logs.get(i / 2).getStartTime()) + " ~ "
 					+ dateFormat.format(logs.get(i / 2).getEndTime()) : "");
 //			Log.d("!!", String.valueOf(durations.get(i)));

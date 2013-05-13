@@ -74,6 +74,7 @@ public class MainDashboardActivity extends Activity {
 			public void onClick(View arg0) {				
 				Intent intent = new Intent();
 				intent.setClass(MainDashboardActivity.this, ReadDiaryActivity.class); //TODO
+				intent.putExtra("mode", ReadDiaryActivity.MAP);
 				startActivity(intent);				
 		}});
 		TextView textMap = new TextView(this);

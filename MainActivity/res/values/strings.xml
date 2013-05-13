@@ -24,9 +24,10 @@
 	<string name="google_api_key_signed">"AIzaSyBVm9OYSKKaQcV3akDA51Vcjq4ud6WWW84</string>
 	<string name="diary_button_start_now">設為現在</string>
 	<string name="diary_button_end_now">設為現在</string>
-	<string name="diary_label_select_one">或是從裡面選一個↓</string>
+	<string name="diary_label_select_one">選擇類別</string>
 	<string name="diary_hint_doing">請輸入您的活動...</string>
 	<string name="diary_button_choose_date">選日期</string>
 	<string name="diary_label_hint">小提示: 可以先輸入活動名稱以及開始時間之後離開，等到結束時再回來把表格填完 (已輸入的部分會被保存下來)</string>
+	<string name="diary_comment_hint">在做什麼呢? (可空白)</string>
 
 </resources>

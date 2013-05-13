@@ -16,6 +16,7 @@ public class ActivityLog {
     /** Not-null value. */
     private String activityName;
     private boolean uploaded;
+    private String activityComment;
 
     public ActivityLog() {
     }
@@ -24,13 +25,14 @@ public class ActivityLog {
         this.id = id;
     }
 
-    public ActivityLog(Long id, String deviceId, java.util.Date startTime, java.util.Date endTime, String activityName, boolean uploaded) {
+    public ActivityLog(Long id, String deviceId, java.util.Date startTime, java.util.Date endTime, String activityName, boolean uploaded, String activityComment) {
         this.id = id;
         this.deviceId = deviceId;
         this.startTime = startTime;
         this.endTime = endTime;
         this.activityName = activityName;
         this.uploaded = uploaded;
+        this.activityComment = activityComment;
     }
 
     public Long getId() {
@@ -87,6 +89,14 @@ public class ActivityLog {
 
     public void setUploaded(boolean uploaded) {
         this.uploaded = uploaded;
+    }
+
+    public String getActivityComment() {
+        return activityComment;
+    }
+
+    public void setActivityComment(String activityComment) {
+        this.activityComment = activityComment;
     }
 
 }

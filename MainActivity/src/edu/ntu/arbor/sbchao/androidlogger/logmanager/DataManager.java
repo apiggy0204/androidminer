@@ -56,6 +56,7 @@ public class DataManager {
 	public static final String END_TIME = "endTime";
 	public static final String ACTIVITY_NAME = "activityName";
 	public static final String UPLOADED = "uploaded";
+	public static final String ACTIVITY_COMMENT = "activityComment";
 	
 
 	public DataManager(){

@@ -10,13 +10,15 @@ import edu.ntu.arbor.sbchao.androidlogger.logmanager.DataManager;
 public class AndroidMinerSchemaGenerator {
 
 	public static void main(String[] args) throws Exception {
-        Schema schema = new Schema(7, "edu.ntu.arbor.sbchao.androidlogger.scheme");
+        Schema schema = new Schema(8, "edu.ntu.arbor.sbchao.androidlogger.scheme");
 
         addMobileLog(schema);
         addNetworkLog(schema);
         addActivityLog(schema);
         
         new DaoGenerator().generateAll(schema, ".");
+        
+        //On database schema update, remember to change createAllTables(db, false) to createAllTables(db, true) in line 45 of DaoMaster.java.
     }
 
     private static void addMobileLog(Schema schema){
@@ -72,6 +74,7 @@ public class AndroidMinerSchemaGenerator {
     	mobileLog.addStringProperty(DataManager.ACTIVITY_NAME).notNull();     
     	
     	mobileLog.addBooleanProperty(DataManager.UPLOADED).notNull();
+    	mobileLog.addStringProperty(DataManager.ACTIVITY_COMMENT);
     }
     
     /*

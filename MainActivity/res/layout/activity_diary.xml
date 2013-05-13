@@ -4,11 +4,14 @@
     android:layout_height="match_parent"
     android:orientation="vertical" >
 
+    <!-- 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/diary_label_whatrudoing"
         android:textAppearance="?android:attr/textAppearanceLarge" />
+     -->
+     
 	<!-- 
     <AutoCompleteTextView
         android:id="@+id/autoCompleteTextView_doing"
@@ -17,7 +20,7 @@
         android:ems="10"
         />
      -->
-     
+    <!--  
     <EditText
         android:id="@+id/editText_diary_doing"
         android:layout_width="match_parent"
@@ -27,7 +30,7 @@
 
         <requestFocus />
     </EditText>
-
+ 	-->
     <TextView
         android:id="@+id/diary_label_select_from_spinner"
         android:layout_width="wrap_content"
@@ -39,6 +42,13 @@
         android:id="@+id/spinner_diary_doing"
         android:layout_width="match_parent"
         android:layout_height="wrap_content" />
+
+    <EditText
+        android:id="@+id/editText_diary_comment"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ems="10"
+        android:hint="@string/diary_comment_hint" />
     
     <LinearLayout
         android:layout_width="match_parent"

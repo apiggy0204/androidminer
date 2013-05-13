@@ -54,18 +54,22 @@ public class DiaryInputActivity extends Activity {
 	//public Handler mHandler = new ThreadHandler();
 	public static final String DATETIME_FORMAT = "yyyy-MM-dd aa hh:mm:ss";
 	
-	public static final String[] defaultActivities = new String[] {"請選擇...", "研究", "吃飯", "休閒", "運動", "出遊"};
+	public static final String[] defaultActivities = new String[] {"請選擇...", "研究", "吃飯", "休閒", "運動", "出遊", "搭交通工具", "其他"};
 	ArrayList<String> activityList = new ArrayList<String>();
 	public static final String PREF_DIARY = "prefsDiary";
 	public static final String PREF_ACTIVITY_NAME = "prefActivityName";
 	public static final String PREF_START_TIME = "prefStartTime";
 	public static final String PREF_END_TIME = "prefEndTime";
 	public static final String PREF_ACTIVITY_SET = "prefsActivitySet";
+	private static final String PREF_COMMENT = "prefComment";
+	private static final String PREF_ACTIVITY_ID = "prefActivityId";
 	
 	private static final int DIALOG_SET_START_TIME = 0;
 	private static final int DIALOG_SET_END_TIME = 1;
 	protected static final int DIALOG_SET_START_DATE = 2;
 	protected static final int DIALOG_SET_END_DATE = 3;
+
+
 	
 	
 	private Button buttonSave;
@@ -74,7 +78,7 @@ public class DiaryInputActivity extends Activity {
 	private TextView textEndTime;
 	private Button buttonSetStartTime;
 	private Button buttonSetEndTime;
-	private EditText editTextDoing;
+	//private EditText editTextDoing;
 	private Button buttonQuit;
 	private Button buttonStartNow;
 	private Button buttonEndNow;
@@ -82,12 +86,15 @@ public class DiaryInputActivity extends Activity {
 	private Spinner spinnerDoing;
 	private Button buttonSetStartDate;
 	private Button buttonSetEndDate;
+	private EditText editTextComment;
 	
 	private NotificationManager mNotificationManager;
 	
 	private Calendar mStartTime = null;
 	private Calendar mEndTime = null;
-	private String mActivityName;
+	private String mActivityName = "";
+	private int mActivityId = 0;
+	private String mComment = "";
 	private String deviceId;
 	
 	//Database
@@ -124,6 +131,8 @@ public class DiaryInputActivity extends Activity {
 			mActivityName = (String) savedInstanceState.getSerializable(PREF_ACTIVITY_NAME);
 			mStartTime = (Calendar) savedInstanceState.getSerializable(PREF_START_TIME);
 			mEndTime = (Calendar) savedInstanceState.getSerializable(PREF_END_TIME);
+			mComment = (String) savedInstanceState.getSerializable(PREF_COMMENT);
+			mActivityId = savedInstanceState.getInt(PREF_ACTIVITY_ID);
 		}
 		
 		deviceId = ((TelephonyManager) this.getSystemService(Context.TELEPHONY_SERVICE)).getDeviceId();
@@ -139,6 +148,8 @@ public class DiaryInputActivity extends Activity {
 		outState.putSerializable(PREF_ACTIVITY_NAME, mActivityName);
 		outState.putSerializable(PREF_START_TIME, mStartTime);
 		outState.putSerializable(PREF_END_TIME, mEndTime);
+		outState.putSerializable(PREF_COMMENT, mComment);
+		outState.putInt(PREF_ACTIVITY_ID, mActivityId);
 	}
 	
 	@Override
@@ -162,10 +173,19 @@ public class DiaryInputActivity extends Activity {
 	protected void onResume() {
 		super.onResume();
 		mDbMgr.openDb();
-		
+				
+		//Restore previous inputs via shared preferences
 		SharedPreferences settings = getSharedPreferences(PREF_DIARY , 0);
+		
 		mActivityName = settings.getString(PREF_ACTIVITY_NAME, "");
-		editTextDoing.setText(mActivityName);
+		
+		mComment = settings.getString(PREF_COMMENT, "");
+		editTextComment.setText(mComment);
+		//editTextDoing.setText(mActivityName);
+		
+		mActivityId = settings.getInt(PREF_ACTIVITY_ID, 0);	
+		spinnerDoing.setSelection(mActivityId);
+		
 		//autoCompleteTextDoing.setText(mActivityName);
 		
 		Long startTimeInMillis = settings.getLong(PREF_START_TIME, -1);
@@ -203,17 +223,22 @@ public class DiaryInputActivity extends Activity {
 		super.onPause();
 		mDbMgr.closeDb();
 		
+		//Save current inputs via shared preferences
 		SharedPreferences settings = getSharedPreferences(PREF_DIARY, 0);
-	    Editor editor = settings.edit();	 
+	    Editor editor = settings.edit();
+	    editor.remove(PREF_COMMENT);
 	    editor.remove(PREF_ACTIVITY_NAME);
 	    editor.remove(PREF_START_TIME);
-	    editor.remove(PREF_END_TIME);
+	    editor.remove(PREF_END_TIME);	
+	    editor.remove(PREF_ACTIVITY_ID);
 	    
-	    mActivityName = editTextDoing.getText().toString();
-	    //mActivityName = autoCompleteTextDoing.getText().toString();
+	    //mActivityName = editTextDoing.getText().toString();
+	    mComment = editTextComment.getText().toString();
 	    if(mActivityName != null) editor.putString(PREF_ACTIVITY_NAME, mActivityName);
+	    if(mComment != null) editor.putString(PREF_COMMENT, mComment);
 	    if(mStartTime != null) editor.putLong(PREF_START_TIME, mStartTime.getTimeInMillis());
 	    if(mEndTime != null) editor.putLong(PREF_END_TIME, mEndTime.getTimeInMillis());
+	    editor.putInt(PREF_ACTIVITY_ID, spinnerDoing.getSelectedItemPosition());
 	    
 	    /*
 		String joinedStr = "";
@@ -314,6 +339,7 @@ public class DiaryInputActivity extends Activity {
             textEndTime.setText(DateFormat.format(DATETIME_FORMAT, mEndTime.getTime()));
         }  
     };
+	
 
 
 	private void writeToLog(){
@@ -363,7 +389,7 @@ public class DiaryInputActivity extends Activity {
 	public void writeToDatabase(){
 		Log.v("Database", "Starting to insert new ActivityLog");
 		
-		ActivityLog log = new ActivityLog(null, deviceId, mStartTime.getTime(), mEndTime.getTime(), mActivityName, false);
+		ActivityLog log = new ActivityLog(null, deviceId, mStartTime.getTime(), mEndTime.getTime(), mActivityName, false, mComment);
 		
 		mDbMgr.getActivityLogDao().insert(log);
         Log.v("Database", "Inserted new ActivityLog, ID: " + log.getId());
@@ -371,7 +397,7 @@ public class DiaryInputActivity extends Activity {
 	}
 	
     private void setUi(){
-    	editTextDoing = (EditText) findViewById(R.id.editText_diary_doing);
+    	//editTextDoing = (EditText) findViewById(R.id.editText_diary_doing);
     	//autoCompleteTextDoing = (AutoCompleteTextView) findViewById(R.id.autoCompleteTextView_doing);
     	buttonSetStartTime = (Button) findViewById(R.id.button_diary_choose_start_time);
     	buttonSetEndTime   = (Button) findViewById(R.id.button_diary_choose_end_time);
@@ -384,6 +410,7 @@ public class DiaryInputActivity extends Activity {
     	buttonSetEndDate = (Button) findViewById(R.id.button_diary_choose_end_date);
     	textStartTime = (TextView) findViewById(R.id.text_diary_start_time);
     	textEndTime = (TextView) findViewById(R.id.text_diary_end_time);
+    	editTextComment = (EditText) findViewById(R.id.editText_diary_comment);
     	spinnerDoing = (Spinner) findViewById(R.id.spinner_diary_doing);
     	
     	buttonSetStartDate.setOnClickListener(new OnClickListener(){
@@ -463,6 +490,8 @@ public class DiaryInputActivity extends Activity {
     //Add user-specified activities to Spinner from preferences
     private void setSpinner(){    	
     	SharedPreferences settings = getSharedPreferences(PREF_DIARY, 0);
+    	//Get activity list from preferences
+    	/*
     	String joinedStr = settings.getString(PREF_ACTIVITY_SET, "");
     	Log.d(TAG, "setUi joinedStr: " + joinedStr);
     	String activityArr [];
@@ -477,20 +506,32 @@ public class DiaryInputActivity extends Activity {
 			for(String act : activityArr){
 				activityList.add(act);
 			}
-		}		
+		}*/		
+    	
+    	//Get activity list from preferences
+    	String activityArr [];
+		for(String act : defaultActivities){
+			activityList.add(act);
+		}
+		activityArr = (String[]) activityList.toArray(new String[0]);
+		
 		//Add activities to the spinner
     	ArrayAdapter<String> adapterSpinner = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, activityArr);
         spinnerDoing.setAdapter(adapterSpinner);
         spinnerDoing.setOnItemSelectedListener(new OnItemSelectedListener(){
         	public void onItemSelected(AdapterView<?> adapterView, View view, int position, long id) {
-        		if(position != 0){
-	        		editTextDoing.setText(adapterView.getSelectedItem().toString());
-	        		mActivityName = editTextDoing.getText().toString();
-        		}
+        		//if(position != 0){
+        			mActivityName = adapterView.getSelectedItem().toString();
+        			mActivityId = position;
+	        		//editTextDoing.setText(adapterView.getSelectedItem().toString());
+	        		//mActivityName = editTextDoing.getText().toString();
+        		//}
         	}  
         	public void onNothingSelected(AdapterView<?> arg0) {  
-                editTextDoing.setText("");
-                mActivityName = editTextDoing.getText().toString();
+        		mActivityName = null;
+        		mActivityId = 0;
+                //editTextDoing.setText("");
+                //mActivityName = editTextDoing.getText().toString();
         	}  
         });            
         spinnerDoing.setVisibility(View.VISIBLE);  
@@ -500,33 +541,38 @@ public class DiaryInputActivity extends Activity {
 		@Override
 		public void onClick(View arg0) {
 			
-			mActivityName = editTextDoing.getText().toString();
-			//mActivityName = autoCompleteTextDoing.getText().toString();
-			if(mActivityName == null || mActivityName.equals("") || mStartTime == null || mEndTime == null){
-				Toast.makeText(DiaryInputActivity.this, "欄位不得為空!", Toast.LENGTH_LONG).show();
+			mComment = editTextComment.getText().toString();
+			Log.i(TAG, "mComment: " + mComment);
+			Log.i(TAG, "mActivityName: " + mActivityName);
+			Log.i(TAG, "mActivityId: " + mActivityId);
+			
+			if(mActivityId == 0 || mActivityName == null || mActivityName.equals("") || mStartTime == null || mEndTime == null){
+				Toast.makeText(DiaryInputActivity.this, "請選擇活動類別和時間!", Toast.LENGTH_LONG).show();
 			} 
 			else if( !mStartTime.before(mEndTime) ){
 				Toast.makeText(DiaryInputActivity.this, "結束時間不得早於開始時間!", Toast.LENGTH_LONG).show();
 			}
-			else{		
+			else{
 				//Add new user-specified activity to the preferences so that it can be conveniently selected in the spinner
-				if( !activityList.contains(mActivityName) ) activityList.add(mActivityName);					 
+				/*if( !activityList.contains(mActivityName) ) activityList.add(mActivityName);					 
 				SharedPreferences settings = getSharedPreferences(PREF_DIARY, 0);
 			    Editor editor = settings.edit();	    				    
 				String joinedStr = "";
 				for(String act : activityList){			
-					joinedStr += (act + ";");			
+					joinedStr += (act + ";");
 				}
 				Log.d(TAG, "onSaveClicked joinedStr: " + joinedStr);
 				editor.putString(PREF_ACTIVITY_SET, joinedStr);				
 				editor.commit();
+				*/
 				
+				//Write to log and database
 				writeToLog();
 				Toast.makeText(DiaryInputActivity.this, "已儲存!", Toast.LENGTH_LONG).show();
 				clearForm();
 				
-				//TODO By default, next activity's start time = this activity's end time
-				mStartTime = Calendar.getInstance();
+				//By default, next activity's start time = this activity's end time
+				mStartTime = mEndTime;
 				
 				finish();
 				//Use this to notify users to write diaries if they don't for a while 
@@ -536,22 +582,27 @@ public class DiaryInputActivity extends Activity {
 	};
     
     private void clearForm(){
-    	editTextDoing.setText("");
+    	//editTextDoing.setText("");
+    	editTextComment.setText("");
     	//autoCompleteTextDoing.setText("");
     	textStartTime.setText("");
     	textEndTime.setText("");
+    	
     	mStartTime = null;
     	mEndTime   = null;
-    	mActivityName = "";
+    	mActivityName = null;
+    	mComment = null;
+    	mActivityId = 0;
     }
     
     private void sendNotification(){
-    	mActivityName = editTextDoing.getText().toString();
+    	//mActivityName = editTextDoing.getText().toString();
+    	//TODO
     	//mActivityName = autoCompleteTextDoing.getText().toString();
     	NotificationCompat.Builder mBuilder =
     	        new NotificationCompat.Builder(this)
     	        .setSmallIcon(R.drawable.netdbfans)
-    	        .setContentTitle("目前活動: " + mActivityName)
+    	        .setContentTitle("目前活動: " + mActivityName + " " + mComment)
     	        .setContentText("點擊以儲存目前活動");
     	// Creates an explicit intent for an Activity in your app
     	Intent resultIntent = new Intent(this, DiaryInputActivity.class);

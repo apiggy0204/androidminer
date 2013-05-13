@@ -29,6 +29,7 @@ public class ActivityLogDao extends AbstractDao<ActivityLog, Long> {
         public final static Property EndTime = new Property(3, java.util.Date.class, "endTime", false, "END_TIME");
         public final static Property ActivityName = new Property(4, String.class, "activityName", false, "ACTIVITY_NAME");
         public final static Property Uploaded = new Property(5, boolean.class, "uploaded", false, "UPLOADED");
+        public final static Property ActivityComment = new Property(6, String.class, "activityComment", false, "ACTIVITY_COMMENT");
     };
 
 
@@ -49,7 +50,8 @@ public class ActivityLogDao extends AbstractDao<ActivityLog, Long> {
                 "'START_TIME' INTEGER NOT NULL ," + // 2: startTime
                 "'END_TIME' INTEGER NOT NULL ," + // 3: endTime
                 "'ACTIVITY_NAME' TEXT NOT NULL ," + // 4: activityName
-                "'UPLOADED' INTEGER NOT NULL );"); // 5: uploaded
+                "'UPLOADED' INTEGER NOT NULL ," + // 5: uploaded
+                "'ACTIVITY_COMMENT' TEXT);"); // 6: activityComment
     }
 
     /** Drops the underlying database table. */
@@ -72,6 +74,11 @@ public class ActivityLogDao extends AbstractDao<ActivityLog, Long> {
         stmt.bindLong(4, entity.getEndTime().getTime());
         stmt.bindString(5, entity.getActivityName());
         stmt.bindLong(6, entity.getUploaded() ? 1l: 0l);
+ 
+        String activityComment = entity.getActivityComment();
+        if (activityComment != null) {
+            stmt.bindString(7, activityComment);
+        }
     }
 
     /** @inheritdoc */
@@ -89,7 +96,8 @@ public class ActivityLogDao extends AbstractDao<ActivityLog, Long> {
             new java.util.Date(cursor.getLong(offset + 2)), // startTime
             new java.util.Date(cursor.getLong(offset + 3)), // endTime
             cursor.getString(offset + 4), // activityName
-            cursor.getShort(offset + 5) != 0 // uploaded
+            cursor.getShort(offset + 5) != 0, // uploaded
+            cursor.isNull(offset + 6) ? null : cursor.getString(offset + 6) // activityComment
         );
         return entity;
     }
@@ -103,6 +111,7 @@ public class ActivityLogDao extends AbstractDao<ActivityLog, Long> {
         entity.setEndTime(new java.util.Date(cursor.getLong(offset + 3)));
         entity.setActivityName(cursor.getString(offset + 4));
         entity.setUploaded(cursor.getShort(offset + 5) != 0);
+        entity.setActivityComment(cursor.isNull(offset + 6) ? null : cursor.getString(offset + 6));
      }
     
     /** @inheritdoc */
