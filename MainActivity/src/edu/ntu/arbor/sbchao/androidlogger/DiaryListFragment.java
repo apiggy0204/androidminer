@@ -1,9 +1,10 @@
 package edu.ntu.arbor.sbchao.androidlogger;
 
-import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import android.content.Context;
@@ -16,7 +17,6 @@ import android.view.ViewGroup;
 import android.widget.ListView;
 import android.widget.RelativeLayout;
 import android.widget.SimpleAdapter;
-import android.widget.TextView;
 import edu.ntu.arbor.sbchao.androidlogger.scheme.ActivityLog;
 
 public class DiaryListFragment extends Fragment {
@@ -54,13 +54,20 @@ public class DiaryListFragment extends Fragment {
 			prevEndTime = endTime;
 		}
 
-		DateFormat dateFormat = DateFormat.getTimeInstance(DateFormat.SHORT);
+		SimpleDateFormat dateFormat = new SimpleDateFormat("hh:mm",
+				Locale.TAIWAN);
+		// String formattedDateString = dateFormat.format(new java.util.Date());
+
+		// DateFormat dateFormat = DateFormat.getTimeInstance(DateFormat.SHORT);
 		List<Map<String, Object>> listData = new ArrayList<Map<String, Object>>();
 		for (int i = 0; i < durations.size(); i++) {
 			Map<String, Object> item = new HashMap<String, Object>();
-			item.put("activity", (i % 2 == 0) ? (logs.get(i / 2)
-					.getActivityName() + " " + logs.get(i / 2)
-					.getActivityComment()) : ""); // TODO
+			item.put("type_icon", (i % 2 == 0) ? getActivityType(logs
+					.get(i / 2).getActivityName()) : "");
+			item.put("type_text", (i % 2 == 0) ? logs.get(i / 2)
+					.getActivityName() : "");
+			item.put("activity",
+					(i % 2 == 0) ? (logs.get(i / 2).getActivityComment()) : "");
 			item.put(
 					"duration",
 					(i % 2 == 0) ? dateFormat.format(logs.get(i / 2)
@@ -72,10 +79,28 @@ public class DiaryListFragment extends Fragment {
 			listData.add(item);
 		}
 		mAdapter = new TimelineAdapter(getActivity(), listData,
-				R.layout.listitem_diary,
-				new String[] { "activity", "duration" }, new int[] {
+				R.layout.listitem_diary, new String[] { "type_icon",
+						"type_text", "activity", "duration" }, new int[] {
+						R.id.imageView_type, R.id.textView_type,
 						R.id.textView_activity, R.id.textView_duration });
 		mListView.setAdapter(mAdapter);
+	}
+
+	private int getActivityType(String activityName) {
+		if (activityName.equals("研究"))
+			return R.drawable.ic_research;
+		else if (activityName.equals("吃飯"))
+			return R.drawable.ic_eat;
+		else if (activityName.equals("休閒"))
+			return R.drawable.ic_relax;
+		else if (activityName.equals("運動"))
+			return R.drawable.ic_exercise;
+		else if (activityName.equals("出遊"))
+			return R.drawable.ic_travel;
+		else if (activityName.equals("搭交通工具"))
+			return R.drawable.ic_commute;
+		else
+			return R.drawable.ic_research;
 	}
 
 	private class TimelineAdapter extends SimpleAdapter {
@@ -90,31 +115,19 @@ public class DiaryListFragment extends Fragment {
 
 		@Override
 		public View getView(int position, View convertView, ViewGroup parent) {
-//			if (convertView == null) {
-				convertView = super.getView(position, convertView, parent);
-				double height = (Double) data.get(position).get("height");
-				if (position % 2 == 1) {
-					TextView durationTextView = (TextView) convertView
-							.findViewById(R.id.textView_duration);
-					TextView activityTextView = (TextView) convertView
-							.findViewById(R.id.textView_activity);
-					convertView.setBackgroundColor(Color.WHITE);
-				} else {
-					TextView durationTextView = (TextView) convertView
-							.findViewById(R.id.textView_duration);
-					TextView activityTextView = (TextView) convertView
-							.findViewById(R.id.textView_activity);
-					convertView.setBackgroundResource(R.drawable.bg_event);
-				}
+			double height = (Double) data.get(position).get("height");
+			convertView = super.getView(position, convertView, parent);
+			if (position % 2 == 1) {
+				convertView
+						.setLayoutParams(new ListView.LayoutParams(
+								RelativeLayout.LayoutParams.MATCH_PARENT,
+								(int) height));
+				RelativeLayout eventBgLayout = (RelativeLayout) convertView.findViewById(R.id.layout_event_bg);
+				eventBgLayout.setBackgroundResource(R.drawable.bg_event_span);
+				RelativeLayout eventLayout = (RelativeLayout) convertView.findViewById(R.id.layout_event);
+				eventLayout.setVisibility(View.INVISIBLE);
+			}
 
-				if (height < 0) {
-					height = 0;
-				} else if (height < 30) {
-					height = 30;
-				}
-				convertView.setLayoutParams(new ListView.LayoutParams(
-						RelativeLayout.LayoutParams.MATCH_PARENT, (int) height));
-//			}
 			return convertView;
 		}
 	}

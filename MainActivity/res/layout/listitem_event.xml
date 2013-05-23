@@ -27,13 +27,6 @@
 		android:layout_height="fill_parent"
 		android:orientation="horizontal"
 		android:padding="3dip" >
-
-		<LinearLayout
-			android:id="@+id/layout_event"
-			android:layout_width="fill_parent"
-			android:layout_height="fill_parent"
-			android:orientation="vertical" >
-		</LinearLayout>
 	</LinearLayout>
 
 </LinearLayout>
